@@ -189,9 +189,10 @@ func detect4Regions(img image.Image) []image.Rectangle {
 func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool) error {
 	crop := image.NewRGBA(image.Rect(0, 0, rect.Dx(), rect.Dy()))
 	draw.Draw(crop, crop.Bounds(), src, rect.Min, draw.Src)
-	finalImage := image.Image(crop)
+	enhanced := enhancePhotoQuality(crop)
+	finalImage := image.Image(enhanced)
 	if autoRotateCrops {
-		finalImage = rotateImage(crop, 90)
+		finalImage = rotateImage(enhanced, 90)
 	}
 
 	f, err := os.Create(outputPath)
@@ -201,6 +202,291 @@ func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQu
 	defer f.Close()
 
 	return jpeg.Encode(f, finalImage, &jpeg.Options{Quality: jpegQuality})
+}
+
+func enhancePhotoQuality(src image.Image) *image.RGBA {
+	base := toRGBA(src)
+	leveled := autoLevel(base)
+	gammaCorrected := autoGamma(leveled)
+	modulated := modulateSaturation(gammaCorrected, 1.15)
+	return sharpen(modulated)
+}
+
+func toRGBA(src image.Image) *image.RGBA {
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Src)
+	return dst
+}
+
+func autoLevel(src *image.RGBA) *image.RGBA {
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+
+	minR, minG, minB := uint8(255), uint8(255), uint8(255)
+	maxR, maxG, maxB := uint8(0), uint8(0), uint8(0)
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl, _ := src.At(x, y).RGBA()
+			r8, g8, b8 := uint8(r>>8), uint8(g>>8), uint8(bl>>8)
+			if r8 < minR {
+				minR = r8
+			}
+			if g8 < minG {
+				minG = g8
+			}
+			if b8 < minB {
+				minB = b8
+			}
+			if r8 > maxR {
+				maxR = r8
+			}
+			if g8 > maxG {
+				maxG = g8
+			}
+			if b8 > maxB {
+				maxB = b8
+			}
+		}
+	}
+
+	scale := func(v, minV, maxV uint8) uint8 {
+		if maxV <= minV {
+			return v
+		}
+		value := (int(v) - int(minV)) * 255 / (int(maxV) - int(minV))
+		return uint8(clampInt(value, 0, 255))
+	}
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl, a := src.At(x, y).RGBA()
+			dst.SetRGBA(x-b.Min.X, y-b.Min.Y, color.RGBA{
+				R: scale(uint8(r>>8), minR, maxR),
+				G: scale(uint8(g>>8), minG, maxG),
+				B: scale(uint8(bl>>8), minB, maxB),
+				A: uint8(a >> 8),
+			})
+		}
+	}
+
+	return dst
+}
+
+func autoGamma(src *image.RGBA) *image.RGBA {
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+
+	var total float64
+	pixelCount := float64(b.Dx() * b.Dy())
+	if pixelCount <= 0 {
+		return src
+	}
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl, _ := src.At(x, y).RGBA()
+			l := (0.2126*float64(r>>8) + 0.7152*float64(g>>8) + 0.0722*float64(bl>>8)) / 255.0
+			total += l
+		}
+	}
+
+	mean := total / pixelCount
+	if mean <= 0 {
+		mean = 0.01
+	}
+	if mean >= 1 {
+		mean = 0.99
+	}
+
+	gamma := math.Log(0.5) / math.Log(mean)
+	gamma = clampFloat(gamma, 0.6, 1.8)
+
+	correct := func(v uint8) uint8 {
+		vf := float64(v) / 255.0
+		out := math.Pow(vf, gamma) * 255.0
+		return uint8(clampInt(int(math.Round(out)), 0, 255))
+	}
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl, a := src.At(x, y).RGBA()
+			dst.SetRGBA(x-b.Min.X, y-b.Min.Y, color.RGBA{
+				R: correct(uint8(r >> 8)),
+				G: correct(uint8(g >> 8)),
+				B: correct(uint8(bl >> 8)),
+				A: uint8(a >> 8),
+			})
+		}
+	}
+
+	return dst
+}
+
+func modulateSaturation(src *image.RGBA, saturationScale float64) *image.RGBA {
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl, a := src.At(x, y).RGBA()
+			rf := float64(r>>8) / 255.0
+			gf := float64(g>>8) / 255.0
+			bf := float64(bl>>8) / 255.0
+
+			h, s, v := rgbToHSV(rf, gf, bf)
+			s = clampFloat(s*saturationScale, 0, 1)
+			r2, g2, b2 := hsvToRGB(h, s, v)
+
+			dst.SetRGBA(x-b.Min.X, y-b.Min.Y, color.RGBA{
+				R: uint8(clampInt(int(math.Round(r2*255)), 0, 255)),
+				G: uint8(clampInt(int(math.Round(g2*255)), 0, 255)),
+				B: uint8(clampInt(int(math.Round(b2*255)), 0, 255)),
+				A: uint8(a >> 8),
+			})
+		}
+	}
+
+	return dst
+}
+
+func sharpen(src *image.RGBA) *image.RGBA {
+	b := src.Bounds()
+	blur := boxBlur3x3(src)
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r1, g1, b1, a := src.At(x, y).RGBA()
+			r2, g2, b2, _ := blur.At(x-b.Min.X, y-b.Min.Y).RGBA()
+
+			outR := int(r1>>8) + (int(r1>>8) - int(r2>>8))
+			outG := int(g1>>8) + (int(g1>>8) - int(g2>>8))
+			outB := int(b1>>8) + (int(b1>>8) - int(b2>>8))
+
+			dst.SetRGBA(x-b.Min.X, y-b.Min.Y, color.RGBA{
+				R: uint8(clampInt(outR, 0, 255)),
+				G: uint8(clampInt(outG, 0, 255)),
+				B: uint8(clampInt(outB, 0, 255)),
+				A: uint8(a >> 8),
+			})
+		}
+	}
+
+	return dst
+}
+
+func boxBlur3x3(src *image.RGBA) *image.RGBA {
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+
+	for y := 0; y < b.Dy(); y++ {
+		for x := 0; x < b.Dx(); x++ {
+			var sumR, sumG, sumB, sumA, count int
+			for ky := -1; ky <= 1; ky++ {
+				ny := y + ky
+				if ny < 0 || ny >= b.Dy() {
+					continue
+				}
+				for kx := -1; kx <= 1; kx++ {
+					nx := x + kx
+					if nx < 0 || nx >= b.Dx() {
+						continue
+					}
+					r, g, bl, a := src.At(b.Min.X+nx, b.Min.Y+ny).RGBA()
+					sumR += int(r >> 8)
+					sumG += int(g >> 8)
+					sumB += int(bl >> 8)
+					sumA += int(a >> 8)
+					count++
+				}
+			}
+
+			dst.SetRGBA(x, y, color.RGBA{
+				R: uint8(sumR / count),
+				G: uint8(sumG / count),
+				B: uint8(sumB / count),
+				A: uint8(sumA / count),
+			})
+		}
+	}
+
+	return dst
+}
+
+func rgbToHSV(r, g, b float64) (float64, float64, float64) {
+	maxC := math.Max(r, math.Max(g, b))
+	minC := math.Min(r, math.Min(g, b))
+	delta := maxC - minC
+
+	h := 0.0
+	if delta != 0 {
+		switch maxC {
+		case r:
+			h = math.Mod((g-b)/delta, 6)
+		case g:
+			h = ((b-r)/delta + 2)
+		default:
+			h = ((r-g)/delta + 4)
+		}
+		h *= 60
+		if h < 0 {
+			h += 360
+		}
+	}
+
+	s := 0.0
+	if maxC != 0 {
+		s = delta / maxC
+	}
+
+	v := maxC
+	return h, s, v
+}
+
+func hsvToRGB(h, s, v float64) (float64, float64, float64) {
+	c := v * s
+	x := c * (1 - math.Abs(math.Mod(h/60.0, 2)-1))
+	m := v - c
+
+	var rf, gf, bf float64
+	switch {
+	case h < 60:
+		rf, gf, bf = c, x, 0
+	case h < 120:
+		rf, gf, bf = x, c, 0
+	case h < 180:
+		rf, gf, bf = 0, c, x
+	case h < 240:
+		rf, gf, bf = 0, x, c
+	case h < 300:
+		rf, gf, bf = x, 0, c
+	default:
+		rf, gf, bf = c, 0, x
+	}
+
+	return rf + m, gf + m, bf + m
+}
+
+func clampFloat(v, minV, maxV float64) float64 {
+	if v < minV {
+		return minV
+	}
+	if v > maxV {
+		return maxV
+	}
+	return v
+}
+
+func clampInt(v, minV, maxV int) int {
+	if v < minV {
+		return minV
+	}
+	if v > maxV {
+		return maxV
+	}
+	return v
 }
 
 func fallbackQuadrants(bounds image.Rectangle) []image.Rectangle {

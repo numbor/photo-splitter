@@ -68,6 +68,7 @@ In output vengono inoltre mantenute:
 - Formati input supportati nativamente: JPEG, PNG, BMP, TIFF, GIF.
 - Il rilevamento delle 4 foto usa proiezioni orizzontali/verticali e ricerca della valle centrale.
 - Se il rilevamento è incerto, viene usato un fallback in 4 quadranti.
+- Su ogni foto croppata viene applicato automaticamente un miglioramento qualità (auto-level, auto-gamma, saturazione +15%, sharpen leggero).
 
 ## CLI tecnica (usata internamente dalla GUI)
 
