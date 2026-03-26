@@ -181,6 +181,13 @@ $numJpgQuality.Value = 95
 $numJpgQuality.Increment = 1
 $form.Controls.Add($numJpgQuality)
 
+$chkAutoRotateCrops = New-Object System.Windows.Forms.CheckBox
+$chkAutoRotateCrops.Text = 'Ruota automaticamente i crop di 90° a destra'
+$chkAutoRotateCrops.Location = New-Object System.Drawing.Point(20, 176)
+$chkAutoRotateCrops.Size = New-Object System.Drawing.Size(340, 20)
+$chkAutoRotateCrops.Checked = $true
+$form.Controls.Add($chkAutoRotateCrops)
+
 $btnScanAndSplit = New-Object System.Windows.Forms.Button
 $btnScanAndSplit.Text = 'Scansiona e separa 4 foto'
 $btnScanAndSplit.Location = New-Object System.Drawing.Point(20, 190)
@@ -359,9 +366,10 @@ $btnScanAndSplit.Add_Click({
   $brightnessArg = '--brightness ' + [int]$numBrightness.Value
   $contrastArg = '--contrast ' + [int]$numContrast.Value
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
+  $autoRotateArg = '--auto-rotate-crops=' + $chkAutoRotateCrops.Checked.ToString().ToLower()
   Append-Log 'Avvio scansione...'
-  Append-Log ('Qualita scanner: DPI=' + [int]$numDpi.Value + ', Brightness=' + [int]$numBrightness.Value + ', Contrast=' + [int]$numContrast.Value + ', JPG Quality=' + [int]$numJpgQuality.Value)
-  $res = Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg)
+  Append-Log ('Qualita scanner: DPI=' + [int]$numDpi.Value + ', Brightness=' + [int]$numBrightness.Value + ', Contrast=' + [int]$numContrast.Value + ', JPG Quality=' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked)
+  $res = Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg, $autoRotateArg)
   if ($res.Success) {
     Update-PreviewsFromOutput $res.Stdout
   }
@@ -380,9 +388,10 @@ $btnProcessPath.Add_Click({
   $inArg = '--input "' + $txtScan.Text.Replace('"','\"') + '"'
   $outArg = '--output "' + $txtOutput.Text.Replace('"','\"') + '"'
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
+  $autoRotateArg = '--auto-rotate-crops=' + $chkAutoRotateCrops.Checked.ToString().ToLower()
   Append-Log 'Avvio elaborazione file...'
-  Append-Log ('Qualita output JPG: ' + [int]$numJpgQuality.Value)
-  $res = Invoke-Backend @('process', $inArg, $outArg, $jpgQualityArg)
+  Append-Log ('Qualita output JPG: ' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked)
+  $res = Invoke-Backend @('process', $inArg, $outArg, $jpgQualityArg, $autoRotateArg)
   if ($res.Success) {
     Update-PreviewsFromOutput $res.Stdout
   }

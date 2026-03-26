@@ -24,7 +24,8 @@ type Result struct {
 }
 
 type Options struct {
-	JPEGQuality int
+	JPEGQuality     int
+	AutoRotateCrops bool
 }
 
 func (o Options) normalized() Options {
@@ -41,7 +42,7 @@ func (o Options) normalized() Options {
 }
 
 func ProcessTo4Photos(inputPath, outputDir string) (Result, error) {
-	return ProcessTo4PhotosWithOptions(inputPath, outputDir, Options{})
+	return ProcessTo4PhotosWithOptions(inputPath, outputDir, Options{AutoRotateCrops: true})
 }
 
 func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (Result, error) {
@@ -75,7 +76,7 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	cropFiles := make([]string, 0, 4)
 	for i, rect := range rects {
 		outPath := filepath.Join(outputDir, fmt.Sprintf("photo_%d.jpg", i+1))
-		if err := cropToJPEG(img, rect, outPath, opt.JPEGQuality); err != nil {
+		if err := cropToJPEG(img, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops); err != nil {
 			return Result{}, fmt.Errorf("crop foto %d: %w", i+1, err)
 		}
 		cropFiles = append(cropFiles, outPath)
@@ -185,9 +186,13 @@ func detect4Regions(img image.Image) []image.Rectangle {
 	return rects
 }
 
-func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int) error {
+func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool) error {
 	crop := image.NewRGBA(image.Rect(0, 0, rect.Dx(), rect.Dy()))
 	draw.Draw(crop, crop.Bounds(), src, rect.Min, draw.Src)
+	finalImage := image.Image(crop)
+	if autoRotateCrops {
+		finalImage = rotateImage(crop, 90)
+	}
 
 	f, err := os.Create(outputPath)
 	if err != nil {
@@ -195,7 +200,7 @@ func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQu
 	}
 	defer f.Close()
 
-	return jpeg.Encode(f, crop, &jpeg.Options{Quality: jpegQuality})
+	return jpeg.Encode(f, finalImage, &jpeg.Options{Quality: jpegQuality})
 }
 
 func fallbackQuadrants(bounds image.Rectangle) []image.Rectangle {
