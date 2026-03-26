@@ -39,6 +39,7 @@ func Run() error {
 	cmd := exec.Command(
 		"powershell",
 		"-NoProfile",
+		"-WindowStyle", "Hidden",
 		"-ExecutionPolicy", "Bypass",
 		"-File", scriptPath,
 		"-AppExe", exePath,

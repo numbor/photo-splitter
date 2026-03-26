@@ -27,7 +27,7 @@ In alternativa:
 
 ```powershell
 go mod tidy
-go build -o photo-splitter.exe .
+go build -ldflags "-H windowsgui" -o photo-splitter.exe .
 .\photo-splitter.exe
 ```
 

@@ -70,7 +70,7 @@ $image = $item.Transfer($formatGuid)
 $image.SaveFile('%s')
 `, opt.DPI, opt.DPI, opt.Brightness, opt.Contrast, formatGUID, escapedPath)
 
-	cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
+	cmd := exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", script)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("scansione fallita: %w: %s", err, string(out))
