@@ -45,6 +45,7 @@ func runProcessCmd(args []string) error {
 	output := fs.String("output", "", "cartella output")
 	jpgQuality := fs.Int("jpg-quality", 95, "qualita JPG output (1-100)")
 	autoRotateCrops := fs.Bool("auto-rotate-crops", true, "ruota automaticamente di 90° a destra ogni crop")
+	addBorder := fs.Bool("add-border", true, "aggiunge il bordo bianco prima del rilevamento e crop")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -61,6 +62,7 @@ func runProcessCmd(args []string) error {
 	result, err := imageproc.ProcessTo4PhotosWithOptions(*input, targetDir, imageproc.Options{
 		JPEGQuality:     *jpgQuality,
 		AutoRotateCrops: *autoRotateCrops,
+		SkipWhiteBorder: !*addBorder,
 	})
 	if err != nil {
 		return err
@@ -68,6 +70,7 @@ func runProcessCmd(args []string) error {
 
 	fmt.Printf("JPG_QUALITY=%d\n", *jpgQuality)
 	fmt.Printf("AUTO_ROTATE_CROPS=%t\n", *autoRotateCrops)
+	fmt.Printf("ADD_BORDER=%t\n", *addBorder)
 	fmt.Printf("OUTPUT_DIR=%s\n", targetDir)
 	fmt.Printf("BORDERED=%s\n", result.BorderedImage)
 	for _, p := range result.Crops {
@@ -84,6 +87,7 @@ func runScanProcessCmd(args []string) error {
 	contrast := fs.Int("contrast", 0, "contrasto scanner (-1000..1000)")
 	jpgQuality := fs.Int("jpg-quality", 95, "qualita JPG output (1-100)")
 	autoRotateCrops := fs.Bool("auto-rotate-crops", true, "ruota automaticamente di 90° a destra ogni crop")
+	_ = fs.Bool("add-border", true, "aggiunge il bordo bianco prima del rilevamento e crop (in scan-process e sempre attivo)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -112,6 +116,7 @@ func runScanProcessCmd(args []string) error {
 	result, err := imageproc.ProcessTo4PhotosWithOptions(scanPath, targetDir, imageproc.Options{
 		JPEGQuality:     *jpgQuality,
 		AutoRotateCrops: *autoRotateCrops,
+		SkipWhiteBorder: false,
 	})
 	if err != nil {
 		return err
@@ -123,6 +128,7 @@ func runScanProcessCmd(args []string) error {
 	fmt.Printf("SCAN_CONTRAST=%d\n", opts.Contrast)
 	fmt.Printf("JPG_QUALITY=%d\n", *jpgQuality)
 	fmt.Printf("AUTO_ROTATE_CROPS=%t\n", *autoRotateCrops)
+	fmt.Printf("ADD_BORDER=%t\n", true)
 	fmt.Printf("OUTPUT_DIR=%s\n", targetDir)
 	fmt.Printf("BORDERED=%s\n", result.BorderedImage)
 	for _, p := range result.Crops {

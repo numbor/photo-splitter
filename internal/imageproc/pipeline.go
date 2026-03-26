@@ -26,6 +26,7 @@ type Result struct {
 type Options struct {
 	JPEGQuality     int
 	AutoRotateCrops bool
+	SkipWhiteBorder bool
 }
 
 func (o Options) normalized() Options {
@@ -52,20 +53,25 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 		return Result{}, fmt.Errorf("creazione output dir: %w", err)
 	}
 
-	borderedPath := filepath.Join(outputDir, "scan_bordered.jpg")
-	if err := addWhiteBorder(inputPath, borderedPath, opt.JPEGQuality); err != nil {
-		return Result{}, err
+	workingPath := inputPath
+	borderedPath := ""
+	if !opt.SkipWhiteBorder {
+		borderedPath = filepath.Join(outputDir, "scan_bordered.jpg")
+		if err := addWhiteBorder(inputPath, borderedPath, opt.JPEGQuality); err != nil {
+			return Result{}, err
+		}
+		workingPath = borderedPath
 	}
 
-	f, err := os.Open(borderedPath)
+	f, err := os.Open(workingPath)
 	if err != nil {
-		return Result{}, fmt.Errorf("apertura immagine bordata: %w", err)
+		return Result{}, fmt.Errorf("apertura immagine elaborazione: %w", err)
 	}
 	defer f.Close()
 
 	img, _, err := image.Decode(f)
 	if err != nil {
-		return Result{}, fmt.Errorf("decode immagine bordata: %w", err)
+		return Result{}, fmt.Errorf("decode immagine elaborazione: %w", err)
 	}
 
 	rects := detect4Regions(img)

@@ -188,6 +188,13 @@ $chkAutoRotateCrops.Size = New-Object System.Drawing.Size(340, 20)
 $chkAutoRotateCrops.Checked = $true
 $form.Controls.Add($chkAutoRotateCrops)
 
+$chkAddBorder = New-Object System.Windows.Forms.CheckBox
+$chkAddBorder.Text = 'Aggiungi bordo bianco alla scansione'
+$chkAddBorder.Location = New-Object System.Drawing.Point(380, 176)
+$chkAddBorder.Size = New-Object System.Drawing.Size(300, 20)
+$chkAddBorder.Checked = $true
+$form.Controls.Add($chkAddBorder)
+
 $btnScanAndSplit = New-Object System.Windows.Forms.Button
 $btnScanAndSplit.Text = 'Scansiona e separa 4 foto'
 $btnScanAndSplit.Location = New-Object System.Drawing.Point(20, 190)
@@ -264,6 +271,13 @@ for ($i = 0; $i -lt 4; $i++) {
 function Append-Log([string]$msg) {
   $timestamp = (Get-Date).ToString('HH:mm:ss')
   $txtLog.AppendText("[$timestamp] $msg" + [Environment]::NewLine)
+}
+
+function To-OnOff([bool]$value) {
+  if ($value) {
+    return 'ON'
+  }
+  return 'OFF'
 }
 
 function Clear-PreviewImage([System.Windows.Forms.PictureBox]$pb) {
@@ -367,9 +381,11 @@ $btnScanAndSplit.Add_Click({
   $contrastArg = '--contrast ' + [int]$numContrast.Value
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
   $autoRotateArg = '--auto-rotate-crops=' + $chkAutoRotateCrops.Checked.ToString().ToLower()
+  $addBorderArg = '--add-border=true'
   Append-Log 'Avvio scansione...'
-  Append-Log ('Qualita scanner: DPI=' + [int]$numDpi.Value + ', Brightness=' + [int]$numBrightness.Value + ', Contrast=' + [int]$numContrast.Value + ', JPG Quality=' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked)
-  $res = Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg, $autoRotateArg)
+  Append-Log ('Preprocessing: AddBorder=ON (forzato su scansione), AutoRotateCrops=' + (To-OnOff $chkAutoRotateCrops.Checked))
+  Append-Log ('Qualita scanner: DPI=' + [int]$numDpi.Value + ', Brightness=' + [int]$numBrightness.Value + ', Contrast=' + [int]$numContrast.Value + ', JPG Quality=' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked + ', AddBorder=true')
+  $res = Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg, $autoRotateArg, $addBorderArg)
   if ($res.Success) {
     Update-PreviewsFromOutput $res.Stdout
   }
@@ -389,9 +405,11 @@ $btnProcessPath.Add_Click({
   $outArg = '--output "' + $txtOutput.Text.Replace('"','\"') + '"'
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
   $autoRotateArg = '--auto-rotate-crops=' + $chkAutoRotateCrops.Checked.ToString().ToLower()
+  $addBorderArg = '--add-border=' + $chkAddBorder.Checked.ToString().ToLower()
   Append-Log 'Avvio elaborazione file...'
-  Append-Log ('Qualita output JPG: ' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked)
-  $res = Invoke-Backend @('process', $inArg, $outArg, $jpgQualityArg, $autoRotateArg)
+  Append-Log ('Preprocessing: AddBorder=' + (To-OnOff $chkAddBorder.Checked) + ', AutoRotateCrops=' + (To-OnOff $chkAutoRotateCrops.Checked))
+  Append-Log ('Qualita output JPG: ' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked + ', AddBorder=' + $chkAddBorder.Checked)
+  $res = Invoke-Backend @('process', $inArg, $outArg, $jpgQualityArg, $autoRotateArg, $addBorderArg)
   if ($res.Success) {
     Update-PreviewsFromOutput $res.Stdout
   }
@@ -427,5 +445,6 @@ for ($i = 0; $i -lt $rotateButtons.Count; $i++) {
 }
 
 Append-Log "GUI pronta. Eseguibile backend: $AppExe"
+Append-Log ('Preprocessing default: AddBorder=' + (To-OnOff $chkAddBorder.Checked) + ', AutoRotateCrops=' + (To-OnOff $chkAutoRotateCrops.Checked))
 [void]$form.ShowDialog()
 `
