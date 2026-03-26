@@ -45,6 +45,7 @@ func Run() error {
 		"-AppExe", exePath,
 		"-DefaultOutput", defaultOutput,
 	)
+	hideWindow(cmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin

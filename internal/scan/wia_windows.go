@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 func AcquireScanJPEG(outputPath string) error {
@@ -71,6 +72,7 @@ $image.SaveFile('%s')
 `, opt.DPI, opt.DPI, opt.Brightness, opt.Contrast, formatGUID, escapedPath)
 
 	cmd := exec.Command("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", script)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("scansione fallita: %w: %s", err, string(out))
