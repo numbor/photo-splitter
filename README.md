@@ -72,6 +72,7 @@ In output vengono inoltre mantenute:
 - Il rilevamento delle 4 foto usa proiezioni orizzontali/verticali e ricerca della valle centrale.
 - Se il rilevamento è incerto, viene usato un fallback in 4 quadranti.
 - Su ogni foto croppata viene applicato automaticamente un miglioramento qualità (auto-level, auto-gamma, saturazione +15%, sharpen leggero).
+- Su ogni foto croppata viene rimosso automaticamente il bordo bianco residuo ai margini.
 - In `scan-process`, il bordo bianco è sempre attivo per migliorare il riconoscimento; in `process` è configurabile (`--add-border=true|false`).
 - In `scan-process`, il formato di scansione è configurabile con `--scan-format=jpeg|tiff` (default `jpeg` per velocità).
 

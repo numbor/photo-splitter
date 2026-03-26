@@ -195,7 +195,8 @@ func detect4Regions(img image.Image) []image.Rectangle {
 func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool) error {
 	crop := image.NewRGBA(image.Rect(0, 0, rect.Dx(), rect.Dy()))
 	draw.Draw(crop, crop.Bounds(), src, rect.Min, draw.Src)
-	enhanced := enhancePhotoQuality(crop)
+	trimmed := trimWhiteBorder(crop)
+	enhanced := enhancePhotoQuality(trimmed)
 	finalImage := image.Image(enhanced)
 	if autoRotateCrops {
 		finalImage = rotateImage(enhanced, 90)
@@ -208,6 +209,109 @@ func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQu
 	defer f.Close()
 
 	return jpeg.Encode(f, finalImage, &jpeg.Options{Quality: jpegQuality})
+}
+
+func trimWhiteBorder(src image.Image) image.Image {
+	b := src.Bounds()
+	width := b.Dx()
+	height := b.Dy()
+	if width < 8 || height < 8 {
+		return src
+	}
+
+	const minBorderWhiteRatio = 0.965
+	const maxTrimRatio = 0.22
+
+	maxTrimX := max(1, int(float64(width)*maxTrimRatio))
+	maxTrimY := max(1, int(float64(height)*maxTrimRatio))
+
+	borderWhiteRatioRow := func(y int, x1 int, x2 int) float64 {
+		if x2 < x1 {
+			return 0
+		}
+		count := 0
+		total := x2 - x1 + 1
+		for x := x1; x <= x2; x++ {
+			if isBorderWhitePixel(src.At(x, y)) {
+				count++
+			}
+		}
+		return float64(count) / float64(total)
+	}
+
+	borderWhiteRatioCol := func(x int, y1 int, y2 int) float64 {
+		if y2 < y1 {
+			return 0
+		}
+		count := 0
+		total := y2 - y1 + 1
+		for y := y1; y <= y2; y++ {
+			if isBorderWhitePixel(src.At(x, y)) {
+				count++
+			}
+		}
+		return float64(count) / float64(total)
+	}
+
+	top := b.Min.Y
+	for step := 0; step < maxTrimY && top < b.Max.Y-1; step++ {
+		ratio := borderWhiteRatioRow(top, b.Min.X, b.Max.X-1)
+		if ratio < minBorderWhiteRatio {
+			break
+		}
+		top++
+	}
+
+	bottom := b.Max.Y - 1
+	for step := 0; step < maxTrimY && bottom > top; step++ {
+		ratio := borderWhiteRatioRow(bottom, b.Min.X, b.Max.X-1)
+		if ratio < minBorderWhiteRatio {
+			break
+		}
+		bottom--
+	}
+
+	left := b.Min.X
+	for step := 0; step < maxTrimX && left < b.Max.X-1; step++ {
+		ratio := borderWhiteRatioCol(left, top, bottom)
+		if ratio < minBorderWhiteRatio {
+			break
+		}
+		left++
+	}
+
+	right := b.Max.X - 1
+	for step := 0; step < maxTrimX && right > left; step++ {
+		ratio := borderWhiteRatioCol(right, top, bottom)
+		if ratio < minBorderWhiteRatio {
+			break
+		}
+		right--
+	}
+
+	if left >= right || top >= bottom {
+		return src
+	}
+
+	trimRect := image.Rect(left, top, right+1, bottom+1)
+	out := image.NewRGBA(image.Rect(0, 0, trimRect.Dx(), trimRect.Dy()))
+	draw.Draw(out, out.Bounds(), src, trimRect.Min, draw.Src)
+	return out
+}
+
+func isBorderWhitePixel(c colorLike) bool {
+	r, g, b, _ := c.RGBA()
+	r8 := int(r >> 8)
+	g8 := int(g >> 8)
+	b8 := int(b >> 8)
+
+	if r8 < 230 || g8 < 230 || b8 < 230 {
+		return false
+	}
+
+	maxC := max(r8, max(g8, b8))
+	minC := min(r8, min(g8, b8))
+	return (maxC - minC) <= 24
 }
 
 func enhancePhotoQuality(src image.Image) *image.RGBA {
