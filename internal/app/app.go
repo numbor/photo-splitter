@@ -72,6 +72,7 @@ $form.StartPosition = 'CenterScreen'
 $form.Size = New-Object System.Drawing.Size(1080, 760)
 $form.MinimumSize = New-Object System.Drawing.Size(980, 700)
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$form.BackColor = [System.Drawing.Color]::FromArgb(245, 247, 250)
 
 $labelOutput = New-Object System.Windows.Forms.Label
 $labelOutput.Text = 'Cartella output'
@@ -222,18 +223,22 @@ $btnScanAndSplit = New-Object System.Windows.Forms.Button
 $btnScanAndSplit.Text = 'Scansiona e separa 4 foto'
 $btnScanAndSplit.Location = New-Object System.Drawing.Point(20, 190)
 $btnScanAndSplit.Size = New-Object System.Drawing.Size(240, 36)
+$btnScanAndSplit.FlatStyle = [System.Windows.Forms.FlatStyle]::System
 $form.Controls.Add($btnScanAndSplit)
 
 $btnProcessPath = New-Object System.Windows.Forms.Button
 $btnProcessPath.Text = 'Elabora file selezionato'
 $btnProcessPath.Location = New-Object System.Drawing.Point(280, 190)
 $btnProcessPath.Size = New-Object System.Drawing.Size(220, 36)
+$btnProcessPath.FlatStyle = [System.Windows.Forms.FlatStyle]::System
 $form.Controls.Add($btnProcessPath)
 
 $btnOpenOutput = New-Object System.Windows.Forms.Button
 $btnOpenOutput.Text = 'Apri cartella output'
 $btnOpenOutput.Location = New-Object System.Drawing.Point(520, 190)
 $btnOpenOutput.Size = New-Object System.Drawing.Size(180, 36)
+$btnOpenOutput.FlatStyle = [System.Windows.Forms.FlatStyle]::System
+$btnOpenOutput.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($btnOpenOutput)
 
 $labelLog = New-Object System.Windows.Forms.Label
@@ -311,7 +316,9 @@ function Update-ResponsiveLayout() {
   $cmbScanFormat.Location = New-Object System.Drawing.Point(($clientW - $sideMargin - $cmbScanFormat.Width), 170)
   $labelScanFormat.Location = New-Object System.Drawing.Point($cmbScanFormat.Left, 150)
 
-  $contentTop = 270
+  $btnOpenOutput.Location = New-Object System.Drawing.Point(($clientW - $sideMargin - $btnOpenOutput.Width), 190)
+
+  $contentTop = 276
   $contentBottomMargin = 20
   $contentH = [Math]::Max(220, $clientH - $contentTop - $contentBottomMargin)
 
