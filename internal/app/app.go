@@ -69,7 +69,9 @@ Add-Type -AssemblyName System.Drawing
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Photo Splitter Go'
 $form.StartPosition = 'CenterScreen'
-$form.Size = New-Object System.Drawing.Size(980, 700)
+$form.Size = New-Object System.Drawing.Size(1080, 760)
+$form.MinimumSize = New-Object System.Drawing.Size(980, 700)
+$form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 
 $labelOutput = New-Object System.Windows.Forms.Label
 $labelOutput.Text = 'Cartella output'
@@ -81,12 +83,14 @@ $txtOutput = New-Object System.Windows.Forms.TextBox
 $txtOutput.Location = New-Object System.Drawing.Point(20, 45)
 $txtOutput.Size = New-Object System.Drawing.Size(760, 25)
 $txtOutput.Text = $DefaultOutput
+$txtOutput.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($txtOutput)
 
 $btnBrowseOutput = New-Object System.Windows.Forms.Button
 $btnBrowseOutput.Text = 'Scegli...'
 $btnBrowseOutput.Location = New-Object System.Drawing.Point(800, 43)
 $btnBrowseOutput.Size = New-Object System.Drawing.Size(120, 30)
+$btnBrowseOutput.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($btnBrowseOutput)
 
 $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -105,12 +109,14 @@ $form.Controls.Add($labelScan)
 $txtScan = New-Object System.Windows.Forms.TextBox
 $txtScan.Location = New-Object System.Drawing.Point(20, 115)
 $txtScan.Size = New-Object System.Drawing.Size(760, 25)
+$txtScan.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($txtScan)
 
 $btnBrowseScan = New-Object System.Windows.Forms.Button
 $btnBrowseScan.Text = 'Apri file...'
 $btnBrowseScan.Location = New-Object System.Drawing.Point(800, 113)
 $btnBrowseScan.Size = New-Object System.Drawing.Size(120, 30)
+$btnBrowseScan.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($btnBrowseScan)
 
 $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -185,6 +191,7 @@ $labelScanFormat = New-Object System.Windows.Forms.Label
 $labelScanFormat.Text = 'Formato scansione'
 $labelScanFormat.Location = New-Object System.Drawing.Point(760, 150)
 $labelScanFormat.Size = New-Object System.Drawing.Size(140, 20)
+$labelScanFormat.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($labelScanFormat)
 
 $cmbScanFormat = New-Object System.Windows.Forms.ComboBox
@@ -194,6 +201,7 @@ $cmbScanFormat.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownLis
 [void]$cmbScanFormat.Items.Add('JPEG')
 [void]$cmbScanFormat.Items.Add('TIFF')
 $cmbScanFormat.SelectedIndex = 0
+$cmbScanFormat.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($cmbScanFormat)
 
 $chkAutoRotateCrops = New-Object System.Windows.Forms.CheckBox
@@ -240,6 +248,7 @@ $txtLog.ScrollBars = 'Vertical'
 $txtLog.ReadOnly = $true
 $txtLog.Location = New-Object System.Drawing.Point(20, 270)
 $txtLog.Size = New-Object System.Drawing.Size(430, 360)
+$txtLog.Font = New-Object System.Drawing.Font('Consolas', 9)
 $form.Controls.Add($txtLog)
 
 $labelPreview = New-Object System.Windows.Forms.Label
@@ -249,6 +258,7 @@ $labelPreview.Size = New-Object System.Drawing.Size(220, 20)
 $form.Controls.Add($labelPreview)
 
 $previewBoxes = @()
+$previewLabels = @()
 $rotateButtons = @()
 $photoPaths = @('','','','')
 
@@ -264,6 +274,7 @@ for ($i = 0; $i -lt 4; $i++) {
   $lbl.Location = New-Object System.Drawing.Point($baseX, $baseY)
   $lbl.Size = New-Object System.Drawing.Size(70, 20)
   $form.Controls.Add($lbl)
+  $previewLabels += $lbl
 
   $pb = New-Object System.Windows.Forms.PictureBox
   $pb.Location = New-Object System.Drawing.Point($baseX, ($baseY + 20))
@@ -282,6 +293,65 @@ for ($i = 0; $i -lt 4; $i++) {
   $form.Controls.Add($btnRotate)
   $rotateButtons += $btnRotate
 }
+
+function Update-ResponsiveLayout() {
+  $clientW = $form.ClientSize.Width
+  $clientH = $form.ClientSize.Height
+
+  $browseWidth = 120
+  $sideMargin = 20
+  $gap = 10
+
+  $btnBrowseOutput.Location = New-Object System.Drawing.Point(($clientW - $sideMargin - $browseWidth), 43)
+  $txtOutput.Width = [Math]::Max(320, $btnBrowseOutput.Left - $gap - $txtOutput.Left)
+
+  $btnBrowseScan.Location = New-Object System.Drawing.Point(($clientW - $sideMargin - $browseWidth), 113)
+  $txtScan.Width = [Math]::Max(320, $btnBrowseScan.Left - $gap - $txtScan.Left)
+
+  $cmbScanFormat.Location = New-Object System.Drawing.Point(($clientW - $sideMargin - $cmbScanFormat.Width), 170)
+  $labelScanFormat.Location = New-Object System.Drawing.Point($cmbScanFormat.Left, 150)
+
+  $contentTop = 270
+  $contentBottomMargin = 20
+  $contentH = [Math]::Max(220, $clientH - $contentTop - $contentBottomMargin)
+
+  $leftPaneW = [Math]::Max(360, [Math]::Floor($clientW * 0.42))
+  $txtLog.SetBounds(20, $contentTop, $leftPaneW, $contentH)
+  $labelLog.Location = New-Object System.Drawing.Point(20, ($contentTop - 25))
+
+  $previewStartX = $txtLog.Right + 24
+  $previewRightMargin = 20
+  $previewW = [Math]::Max(300, $clientW - $previewStartX - $previewRightMargin)
+  $previewH = $contentH
+  $labelPreview.Location = New-Object System.Drawing.Point($previewStartX, ($contentTop - 25))
+
+  $gridGap = 14
+  $cellW = [Math]::Max(130, [Math]::Floor(($previewW - $gridGap) / 2))
+  $cellH = [Math]::Max(140, [Math]::Floor(($previewH - $gridGap) / 2))
+
+  for ($i = 0; $i -lt 4; $i++) {
+    $row = [int][Math]::Floor($i / 2)
+    $col = $i % 2
+
+    $x = $previewStartX + ($col * ($cellW + $gridGap))
+    $y = $contentTop + ($row * ($cellH + $gridGap))
+
+    $imgHeight = [Math]::Max(84, $cellH - 52)
+    $btnY = $y + $cellH - 28
+
+    $previewLabels[$i].SetBounds($x, $y, 90, 18)
+    $previewBoxes[$i].SetBounds($x, ($y + 18), $cellW, $imgHeight)
+    $rotateButtons[$i].SetBounds($x, $btnY, [Math]::Min(120, $cellW), 26)
+  }
+}
+
+$form.Add_Shown({
+  Update-ResponsiveLayout
+})
+
+$form.Add_Resize({
+  Update-ResponsiveLayout
+})
 
 function Append-Log([string]$msg) {
   $timestamp = (Get-Date).ToString('HH:mm:ss')
