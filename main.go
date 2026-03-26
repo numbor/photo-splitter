@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"photo-splitter-go/internal/app"
 	"photo-splitter-go/internal/imageproc"
 	"photo-splitter-go/internal/scan"
 )
@@ -35,7 +34,7 @@ func main() {
 		}
 	}
 
-	if err := app.Run(); err != nil {
+	if err := runWailsApp(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -44,9 +43,10 @@ func runProcessCmd(args []string) error {
 	fs := flag.NewFlagSet("process", flag.ContinueOnError)
 	input := fs.String("input", "", "percorso immagine scannerizzata")
 	output := fs.String("output", "", "cartella output")
-	jpgQuality := fs.Int("jpg-quality", 95, "qualita JPG output (1-100)")
+	jpgQuality := fs.Int("jpg-quality", 100, "qualita JPG output (1-100)")
 	autoRotateCrops := fs.Bool("auto-rotate-crops", true, "ruota automaticamente di 90° a destra ogni crop")
 	addBorder := fs.Bool("add-border", true, "aggiunge il bordo bianco prima del rilevamento e crop")
+	enhanceCrops := fs.Bool("enhance-crops", true, "applica miglioramento automatico ai crop finali")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -64,6 +64,7 @@ func runProcessCmd(args []string) error {
 		JPEGQuality:     *jpgQuality,
 		AutoRotateCrops: *autoRotateCrops,
 		SkipWhiteBorder: !*addBorder,
+		SkipEnhancement: !*enhanceCrops,
 	})
 	if err != nil {
 		return err
@@ -72,6 +73,7 @@ func runProcessCmd(args []string) error {
 	fmt.Printf("JPG_QUALITY=%d\n", *jpgQuality)
 	fmt.Printf("AUTO_ROTATE_CROPS=%t\n", *autoRotateCrops)
 	fmt.Printf("ADD_BORDER=%t\n", *addBorder)
+	fmt.Printf("ENHANCE_CROPS=%t\n", *enhanceCrops)
 	fmt.Printf("OUTPUT_DIR=%s\n", targetDir)
 	fmt.Printf("BORDERED=%s\n", result.BorderedImage)
 	for _, p := range result.Crops {
@@ -83,12 +85,13 @@ func runProcessCmd(args []string) error {
 func runScanProcessCmd(args []string) error {
 	fs := flag.NewFlagSet("scan-process", flag.ContinueOnError)
 	output := fs.String("output", "", "cartella output")
-	scanFormat := fs.String("scan-format", "jpeg", "formato scansione: jpeg|tiff (jpeg piu veloce)")
+	scanFormat := fs.String("scan-format", "tiff", "formato scansione: jpeg|tiff (tiff piu fedele, jpeg piu veloce)")
 	dpi := fs.Int("dpi", 300, "risoluzione scanner DPI (75-1200)")
 	brightness := fs.Int("brightness", 0, "luminosita scanner (-1000..1000)")
 	contrast := fs.Int("contrast", 0, "contrasto scanner (-1000..1000)")
-	jpgQuality := fs.Int("jpg-quality", 95, "qualita JPG output (1-100)")
+	jpgQuality := fs.Int("jpg-quality", 100, "qualita JPG output (1-100)")
 	autoRotateCrops := fs.Bool("auto-rotate-crops", true, "ruota automaticamente di 90° a destra ogni crop")
+	enhanceCrops := fs.Bool("enhance-crops", true, "applica miglioramento automatico ai crop finali")
 	_ = fs.Bool("add-border", true, "aggiunge il bordo bianco prima del rilevamento e crop (in scan-process e sempre attivo)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -135,6 +138,7 @@ func runScanProcessCmd(args []string) error {
 		JPEGQuality:     *jpgQuality,
 		AutoRotateCrops: *autoRotateCrops,
 		SkipWhiteBorder: false,
+		SkipEnhancement: !*enhanceCrops,
 	})
 	if err != nil {
 		return err
@@ -147,6 +151,7 @@ func runScanProcessCmd(args []string) error {
 	fmt.Printf("SCAN_CONTRAST=%d\n", opts.Contrast)
 	fmt.Printf("JPG_QUALITY=%d\n", *jpgQuality)
 	fmt.Printf("AUTO_ROTATE_CROPS=%t\n", *autoRotateCrops)
+	fmt.Printf("ENHANCE_CROPS=%t\n", *enhanceCrops)
 	fmt.Printf("ADD_BORDER=%t\n", true)
 	fmt.Printf("OUTPUT_DIR=%s\n", targetDir)
 	fmt.Printf("BORDERED=%s\n", result.BorderedImage)
@@ -160,7 +165,7 @@ func runRotateCmd(args []string) error {
 	fs := flag.NewFlagSet("rotate", flag.ContinueOnError)
 	input := fs.String("input", "", "percorso immagine JPG da ruotare")
 	angle := fs.Int("angle", 90, "angolo rotazione (90,180,270)")
-	jpgQuality := fs.Int("jpg-quality", 95, "qualita JPG output (1-100)")
+	jpgQuality := fs.Int("jpg-quality", 100, "qualita JPG output (1-100)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

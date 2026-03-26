@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Splitter Go</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      background: #f5f7fa;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+    label {
+      font-size: 13px;
+      color: #334155;
+      margin-bottom: 4px;
+      display: block;
+    }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: white;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .checks {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 9px 14px;
+      cursor: pointer;
+      background: #f8fafc;
+    }
+    button.primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: white;
+    }
+    button.secondary {
+      background: #10b981;
+      border-color: #10b981;
+      color: white;
+    }
+    .content {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      gap: 16px;
+    }
+    textarea {
+      width: 100%;
+      height: 450px;
+      resize: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+      font-family: Consolas, monospace;
+      background: #fcfcfd;
+    }
+    .previews {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .photo-card {
+      background: white;
+      border: 1px solid #dbe1e8;
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .photo-card h4 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #475569;
+    }
+    .preview {
+      width: 100%;
+      height: 150px;
+      border: 1px solid #dbe1e8;
+      border-radius: 8px;
+      background: white;
+      object-fit: contain;
+    }
+    .preview-empty {
+      width: 100%;
+      height: 150px;
+      border: 1px solid #dbe1e8;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+    .photo-card button {
+      margin-top: 8px;
+      width: 120px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="grid">
+      <div>
+        <label>Cartella output</label>
+        <input id="outputPath" type="text" />
+      </div>
+      <button id="btnPickOutput">Scegli...</button>
+    </div>
+
+    <div class="grid" style="margin-top:10px;">
+      <div>
+        <label>Percorso immagine scannerizzata (opzionale)</label>
+        <input id="scanPath" type="text" />
+      </div>
+      <button id="btnPickScan">Apri file...</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>DPI</label>
+        <input id="dpi" type="number" min="75" max="1200" value="300" />
+      </div>
+      <div>
+        <label>Brightness</label>
+        <input id="brightness" type="number" min="-1000" max="1000" value="0" />
+      </div>
+      <div>
+        <label>Contrast</label>
+        <input id="contrast" type="number" min="-1000" max="1000" value="0" />
+      </div>
+      <div>
+        <label>JPG Quality</label>
+        <input id="jpgQuality" type="number" min="1" max="100" value="100" />
+      </div>
+      <div>
+        <label>Formato scansione</label>
+        <select id="scanFormat">
+          <option value="jpeg">JPEG</option>
+          <option value="tiff" selected>TIFF</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="checks">
+      <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
+      <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
+      <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco alla scansione</label>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="btnScanSplit">Scansiona e separa 4 foto</button>
+      <button class="secondary" id="btnProcess">Elabora file selezionato</button>
+      <button id="btnOpenOutput">Apri cartella output</button>
+    </div>
+
+    <div class="content">
+      <div>
+        <label>Log</label>
+        <textarea id="log" readonly></textarea>
+      </div>
+      <div>
+        <label>Anteprime foto croppate</label>
+        <div class="previews" id="previews"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/wails/ipc.js"></script>
+  <script src="/wails/runtime.js"></script>
+  <script>
+    const app = () => window.go.main.DesktopApp;
+    const outputPath = document.getElementById("outputPath");
+    const scanPath = document.getElementById("scanPath");
+    const dpi = document.getElementById("dpi");
+    const brightness = document.getElementById("brightness");
+    const contrast = document.getElementById("contrast");
+    const jpgQuality = document.getElementById("jpgQuality");
+    const scanFormat = document.getElementById("scanFormat");
+    const autoRotate = document.getElementById("autoRotate");
+    const enhanceCrops = document.getElementById("enhanceCrops");
+    const addBorder = document.getElementById("addBorder");
+    const logBox = document.getElementById("log");
+    const previews = document.getElementById("previews");
+
+    const photoPathState = ["", "", "", ""];
+    const photoPreviewState = ["", "", "", ""];
+
+    function appendLog(message) {
+      const now = new Date();
+      const ts = now.toTimeString().slice(0, 8);
+      logBox.value += `[${ts}] ${message}\n`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function renderPreviews() {
+      previews.innerHTML = "";
+      for (let i = 0; i < 4; i++) {
+        const card = document.createElement("div");
+        card.className = "photo-card";
+
+        const title = document.createElement("h4");
+        title.textContent = `Foto ${i + 1}`;
+
+        let previewElement;
+        if (photoPreviewState[i]) {
+          const img = document.createElement("img");
+          img.className = "preview";
+          img.src = photoPreviewState[i];
+          previewElement = img;
+        } else {
+          const empty = document.createElement("div");
+          empty.className = "preview-empty";
+          empty.textContent = "Nessuna anteprima";
+          previewElement = empty;
+        }
+
+        const btn = document.createElement("button");
+        btn.textContent = "Ruota 90°";
+        btn.disabled = !photoPathState[i];
+        btn.addEventListener("click", async () => {
+          if (!photoPathState[i]) return;
+          try {
+            appendLog(`Rotazione foto ${i + 1} di 90 gradi...`);
+            const updated = await app().RotatePhoto({
+              input: photoPathState[i],
+              angle: 90,
+              jpgQuality: parseInt(jpgQuality.value, 10) || 95,
+            });
+            photoPathState[i] = updated;
+            photoPreviewState[i] = await app().GetPhotoPreviewDataURL(updated);
+            renderPreviews();
+            appendLog(`Foto ${i + 1} ruotata con successo.`);
+          } catch (err) {
+            appendLog(`Errore rotazione foto ${i + 1}: ${err}`);
+            alert("Rotazione fallita. Controlla il log.");
+          }
+        });
+
+        card.appendChild(title);
+        card.appendChild(previewElement);
+        card.appendChild(btn);
+        previews.appendChild(card);
+      }
+    }
+
+    async function updateResult(result) {
+      const photos = result.photos || [];
+      for (let i = 0; i < 4; i++) {
+        const photoPath = photos[i] || "";
+        photoPathState[i] = photoPath;
+        photoPreviewState[i] = photoPath ? await app().GetPhotoPreviewDataURL(photoPath) : "";
+      }
+      renderPreviews();
+      (result.logs || []).forEach(appendLog);
+      if (result.scanPath) appendLog(`SCAN=${result.scanPath}`);
+      if (result.outputDir) appendLog(`OUTPUT_DIR=${result.outputDir}`);
+      if (result.borderedPath) appendLog(`BORDERED=${result.borderedPath}`);
+      photos.forEach((path) => appendLog(`PHOTO=${path}`));
+      alert("Operazione completata.");
+    }
+
+    async function loadDefaults() {
+      outputPath.value = await app().DefaultOutputDir();
+      renderPreviews();
+      appendLog("GUI Wails pronta.");
+    }
+
+    document.getElementById("btnPickOutput").addEventListener("click", async () => {
+      try {
+        const selected = await app().SelectOutputDir(outputPath.value || "");
+        if (selected) outputPath.value = selected;
+      } catch (err) {
+        appendLog(`Errore selezione cartella output: ${err}`);
+      }
+    });
+
+    document.getElementById("btnPickScan").addEventListener("click", async () => {
+      try {
+        const selected = await app().SelectScanFile(scanPath.value || "");
+        if (selected) scanPath.value = selected;
+      } catch (err) {
+        appendLog(`Errore selezione file: ${err}`);
+      }
+    });
+
+    document.getElementById("btnScanSplit").addEventListener("click", async () => {
+      try {
+        appendLog("Avvio scansione...");
+        const result = await app().ScanAndProcess({
+          output: outputPath.value,
+          scanFormat: scanFormat.value,
+          dpi: parseInt(dpi.value, 10) || 300,
+          brightness: parseInt(brightness.value, 10) || 0,
+          contrast: parseInt(contrast.value, 10) || 0,
+          jpgQuality: parseInt(jpgQuality.value, 10) || 95,
+          autoRotateCrops: autoRotate.checked,
+          enhanceCrops: enhanceCrops.checked,
+        });
+        await updateResult(result);
+      } catch (err) {
+        appendLog(`Errore scansione/elaborazione: ${err}`);
+        alert("Operazione fallita. Controlla il log.");
+      }
+    });
+
+    document.getElementById("btnProcess").addEventListener("click", async () => {
+      if (!scanPath.value.trim()) {
+        alert("Seleziona un file immagine.");
+        return;
+      }
+      try {
+        appendLog("Avvio elaborazione file...");
+        const result = await app().ProcessFile({
+          input: scanPath.value,
+          output: outputPath.value,
+          jpgQuality: parseInt(jpgQuality.value, 10) || 95,
+          autoRotateCrops: autoRotate.checked,
+          enhanceCrops: enhanceCrops.checked,
+          addBorder: addBorder.checked,
+        });
+        await updateResult(result);
+      } catch (err) {
+        appendLog(`Errore elaborazione file: ${err}`);
+        alert("Operazione fallita. Controlla il log.");
+      }
+    });
+
+    document.getElementById("btnOpenOutput").addEventListener("click", async () => {
+      try {
+        await app().OpenOutputFolder(outputPath.value || "");
+      } catch (err) {
+        appendLog(`Errore apertura cartella output: ${err}`);
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", loadDefaults);
+  </script>
+</body>
+</html>

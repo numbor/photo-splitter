@@ -1,14 +1,13 @@
 package imageproc
 
 import (
-	"bytes"
 	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	_ "image/gif"
 	"image/jpeg"
-	_ "image/png"
+	"image/png"
 	"math"
 	"os"
 	"path/filepath"
@@ -27,11 +26,12 @@ type Options struct {
 	JPEGQuality     int
 	AutoRotateCrops bool
 	SkipWhiteBorder bool
+	SkipEnhancement bool
 }
 
 func (o Options) normalized() Options {
 	if o.JPEGQuality <= 0 {
-		o.JPEGQuality = 95
+		o.JPEGQuality = 100
 	}
 	if o.JPEGQuality < 1 {
 		o.JPEGQuality = 1
@@ -53,17 +53,7 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 		return Result{}, fmt.Errorf("creazione output dir: %w", err)
 	}
 
-	workingPath := inputPath
-	borderedPath := ""
-	if !opt.SkipWhiteBorder {
-		borderedPath = filepath.Join(outputDir, "scan_bordered.jpg")
-		if err := addWhiteBorder(inputPath, borderedPath, opt.JPEGQuality); err != nil {
-			return Result{}, err
-		}
-		workingPath = borderedPath
-	}
-
-	f, err := os.Open(workingPath)
+	f, err := os.Open(inputPath)
 	if err != nil {
 		return Result{}, fmt.Errorf("apertura immagine elaborazione: %w", err)
 	}
@@ -74,7 +64,18 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 		return Result{}, fmt.Errorf("decode immagine elaborazione: %w", err)
 	}
 
-	rects := detect4Regions(img)
+	workingImage := image.Image(img)
+	borderedPath := ""
+	if !opt.SkipWhiteBorder {
+		bordered := addWhiteBorderImage(img)
+		borderedPath = filepath.Join(outputDir, "scan_bordered.png")
+		if err := savePNG(borderedPath, bordered); err != nil {
+			return Result{}, err
+		}
+		workingImage = bordered
+	}
+
+	rects := detect4Regions(workingImage)
 	if len(rects) != 4 {
 		return Result{}, fmt.Errorf("rilevamento foto fallito: aree trovate=%d", len(rects))
 	}
@@ -82,7 +83,7 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	cropFiles := make([]string, 0, 4)
 	for i, rect := range rects {
 		outPath := filepath.Join(outputDir, fmt.Sprintf("photo_%d.jpg", i+1))
-		if err := cropToJPEG(img, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops); err != nil {
+		if err := cropToJPEG(workingImage, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops, opt.SkipEnhancement); err != nil {
 			return Result{}, fmt.Errorf("crop foto %d: %w", i+1, err)
 		}
 		cropFiles = append(cropFiles, outPath)
@@ -95,22 +96,7 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	}, nil
 }
 
-func addWhiteBorder(inputPath, outputPath string, jpegQuality int) error {
-	raw, err := os.ReadFile(inputPath)
-	if err != nil {
-		return fmt.Errorf("apertura immagine input: %w", err)
-	}
-	if len(raw) == 0 {
-		return fmt.Errorf("immagine input vuota: %s", inputPath)
-	}
-
-	img, format, err := image.Decode(bytes.NewReader(raw))
-	if err != nil {
-		headLen := min(16, len(raw))
-		return fmt.Errorf("decode immagine input: %w (size=%d, header=% X)", err, len(raw), raw[:headLen])
-	}
-	_ = format
-
+func addWhiteBorderImage(img image.Image) *image.RGBA {
 	b := img.Bounds()
 	border := 12
 	outRect := image.Rect(0, 0, b.Dx()+border*2, b.Dy()+border*2)
@@ -118,15 +104,18 @@ func addWhiteBorder(inputPath, outputPath string, jpegQuality int) error {
 
 	draw.Draw(canvas, outRect, &image.Uniform{C: color.White}, image.Point{}, draw.Src)
 	draw.Draw(canvas, image.Rect(border, border, border+b.Dx(), border+b.Dy()), img, b.Min, draw.Src)
+	return canvas
+}
 
+func savePNG(outputPath string, img image.Image) error {
 	out, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("creazione immagine bordata: %w", err)
 	}
 	defer out.Close()
 
-	if err := jpeg.Encode(out, canvas, &jpeg.Options{Quality: jpegQuality}); err != nil {
-		return fmt.Errorf("encoding immagine bordata: %w", err)
+	if err := png.Encode(out, img); err != nil {
+		return fmt.Errorf("encoding immagine bordata png: %w", err)
 	}
 
 	return nil
@@ -192,14 +181,16 @@ func detect4Regions(img image.Image) []image.Rectangle {
 	return rects
 }
 
-func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool) error {
+func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool, skipEnhancement bool) error {
 	crop := image.NewRGBA(image.Rect(0, 0, rect.Dx(), rect.Dy()))
 	draw.Draw(crop, crop.Bounds(), src, rect.Min, draw.Src)
 	trimmed := trimWhiteBorder(crop)
-	enhanced := enhancePhotoQuality(trimmed)
-	finalImage := image.Image(enhanced)
+	finalImage := image.Image(trimmed)
+	if !skipEnhancement {
+		finalImage = enhancePhotoQuality(trimmed)
+	}
 	if autoRotateCrops {
-		finalImage = rotateImage(enhanced, 90)
+		finalImage = rotateImage(finalImage, 90)
 	}
 
 	f, err := os.Create(outputPath)
