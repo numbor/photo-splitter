@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"photo-splitter-go/internal/app"
@@ -82,6 +83,7 @@ func runProcessCmd(args []string) error {
 func runScanProcessCmd(args []string) error {
 	fs := flag.NewFlagSet("scan-process", flag.ContinueOnError)
 	output := fs.String("output", "", "cartella output")
+	scanFormat := fs.String("scan-format", "jpeg", "formato scansione: jpeg|tiff (jpeg piu veloce)")
 	dpi := fs.Int("dpi", 300, "risoluzione scanner DPI (75-1200)")
 	brightness := fs.Int("brightness", 0, "luminosita scanner (-1000..1000)")
 	contrast := fs.Int("contrast", 0, "contrasto scanner (-1000..1000)")
@@ -102,14 +104,30 @@ func runScanProcessCmd(args []string) error {
 		return err
 	}
 
-	scanPath := filepath.Join(scanDir, "scan_"+ts+".tiff")
+	format := strings.ToLower(strings.TrimSpace(*scanFormat))
+	if format != "jpeg" && format != "tiff" {
+		return fmt.Errorf("valore non valido per --scan-format: %s (usa jpeg|tiff)", *scanFormat)
+	}
+
+	ext := ".jpg"
+	if format == "tiff" {
+		ext = ".tiff"
+	}
+
+	scanPath := filepath.Join(scanDir, "scan_"+ts+ext)
 	opts := scan.Options{
 		DPI:        *dpi,
 		Brightness: *brightness,
 		Contrast:   *contrast,
 	}
-	if err := scan.AcquireScanTIFFWithOptions(scanPath, opts); err != nil {
-		return err
+	if format == "tiff" {
+		if err := scan.AcquireScanTIFFWithOptions(scanPath, opts); err != nil {
+			return err
+		}
+	} else {
+		if err := scan.AcquireScanJPEGWithOptions(scanPath, opts); err != nil {
+			return err
+		}
 	}
 
 	targetDir := filepath.Join(*output, ts)
@@ -123,6 +141,7 @@ func runScanProcessCmd(args []string) error {
 	}
 
 	fmt.Printf("SCAN=%s\n", scanPath)
+	fmt.Printf("SCAN_FORMAT=%s\n", format)
 	fmt.Printf("SCAN_DPI=%d\n", opts.DPI)
 	fmt.Printf("SCAN_BRIGHTNESS=%d\n", opts.Brightness)
 	fmt.Printf("SCAN_CONTRAST=%d\n", opts.Contrast)

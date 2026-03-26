@@ -39,9 +39,10 @@ Nella finestra puoi scegliere questi flussi:
 
 1. **Scansiona da scanner**
    - usa WIA e poi elabora automaticamente.
-   - salva la scansione principale in formato `TIFF` per preservare qualità.
+   - usa di default scansione `JPEG` (più veloce); `TIFF` resta disponibile via CLI.
    - applica sempre il bordo bianco alla scansione appena acquisita (migliora il rilevamento delle 4 foto).
    - puoi impostare qualità scanner: `DPI`, `Brightness`, `Contrast`.
+   - puoi scegliere il formato scansione (`JPEG` o `TIFF`), default `JPEG` per maggiore velocità.
    - puoi impostare la qualità di salvataggio dei JPG output (`JPG Quality`).
    - puoi attivare/disattivare la rotazione automatica dei crop (`Ruota automaticamente i crop di 90° a destra`).
    - il toggle bordo nella GUI si applica al flusso **Elabora file selezionato**.
@@ -72,10 +73,12 @@ In output vengono inoltre mantenute:
 - Se il rilevamento è incerto, viene usato un fallback in 4 quadranti.
 - Su ogni foto croppata viene applicato automaticamente un miglioramento qualità (auto-level, auto-gamma, saturazione +15%, sharpen leggero).
 - In `scan-process`, il bordo bianco è sempre attivo per migliorare il riconoscimento; in `process` è configurabile (`--add-border=true|false`).
+- In `scan-process`, il formato di scansione è configurabile con `--scan-format=jpeg|tiff` (default `jpeg` per velocità).
 
 ## CLI tecnica (usata internamente dalla GUI)
 
 - `photo-splitter.exe scan-process --output "D:\\scan\\project\\photo-splitter-go\\output" --dpi 300 --brightness 0 --contrast 0`
-- `photo-splitter.exe scan-process --output "D:\\scan\\project\\photo-splitter-go\\output" --dpi 300 --brightness 0 --contrast 0 --jpg-quality 95 --auto-rotate-crops=true`
+- `photo-splitter.exe scan-process --output "D:\\scan\\project\\photo-splitter-go\\output" --scan-format jpeg --dpi 300 --brightness 0 --contrast 0 --jpg-quality 95 --auto-rotate-crops=true`
+- `photo-splitter.exe scan-process --output "D:\\scan\\project\\photo-splitter-go\\output" --scan-format tiff --dpi 300 --brightness 0 --contrast 0 --jpg-quality 95 --auto-rotate-crops=true`
 - `photo-splitter.exe process --input "D:\\path\\scan.tiff" --output "D:\\scan\\project\\photo-splitter-go\\output" --jpg-quality 90 --auto-rotate-crops=false --add-border=false`
 - `photo-splitter.exe rotate --input "D:\\scan\\project\\photo-splitter-go\\output\\20260326_123000\\photo_1.jpg" --angle 90 --jpg-quality 95`

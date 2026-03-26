@@ -181,6 +181,21 @@ $numJpgQuality.Value = 95
 $numJpgQuality.Increment = 1
 $form.Controls.Add($numJpgQuality)
 
+$labelScanFormat = New-Object System.Windows.Forms.Label
+$labelScanFormat.Text = 'Formato scansione'
+$labelScanFormat.Location = New-Object System.Drawing.Point(760, 150)
+$labelScanFormat.Size = New-Object System.Drawing.Size(140, 20)
+$form.Controls.Add($labelScanFormat)
+
+$cmbScanFormat = New-Object System.Windows.Forms.ComboBox
+$cmbScanFormat.Location = New-Object System.Drawing.Point(760, 170)
+$cmbScanFormat.Size = New-Object System.Drawing.Size(160, 25)
+$cmbScanFormat.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+[void]$cmbScanFormat.Items.Add('JPEG')
+[void]$cmbScanFormat.Items.Add('TIFF')
+$cmbScanFormat.SelectedIndex = 0
+$form.Controls.Add($cmbScanFormat)
+
 $chkAutoRotateCrops = New-Object System.Windows.Forms.CheckBox
 $chkAutoRotateCrops.Text = 'Ruota automaticamente i crop di 90° a destra'
 $chkAutoRotateCrops.Location = New-Object System.Drawing.Point(20, 176)
@@ -379,13 +394,16 @@ $btnScanAndSplit.Add_Click({
   $dpiArg = '--dpi ' + [int]$numDpi.Value
   $brightnessArg = '--brightness ' + [int]$numBrightness.Value
   $contrastArg = '--contrast ' + [int]$numContrast.Value
+  $scanFormatValue = $cmbScanFormat.SelectedItem.ToString().ToLower()
+  $scanFormatArg = '--scan-format ' + $scanFormatValue
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
   $autoRotateArg = '--auto-rotate-crops=' + $chkAutoRotateCrops.Checked.ToString().ToLower()
   $addBorderArg = '--add-border=true'
   Append-Log 'Avvio scansione...'
+  Append-Log ('Formato scansione: ' + $cmbScanFormat.SelectedItem)
   Append-Log ('Preprocessing: AddBorder=ON (forzato su scansione), AutoRotateCrops=' + (To-OnOff $chkAutoRotateCrops.Checked))
   Append-Log ('Qualita scanner: DPI=' + [int]$numDpi.Value + ', Brightness=' + [int]$numBrightness.Value + ', Contrast=' + [int]$numContrast.Value + ', JPG Quality=' + [int]$numJpgQuality.Value + ', AutoRotateCrops=' + $chkAutoRotateCrops.Checked + ', AddBorder=true')
-  $res = Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg, $autoRotateArg, $addBorderArg)
+  $res = Invoke-Backend @('scan-process', $outArg, $scanFormatArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg, $autoRotateArg, $addBorderArg)
   if ($res.Success) {
     Update-PreviewsFromOutput $res.Stdout
   }
