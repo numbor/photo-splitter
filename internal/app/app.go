@@ -210,15 +210,113 @@ $txtLog.Multiline = $true
 $txtLog.ScrollBars = 'Vertical'
 $txtLog.ReadOnly = $true
 $txtLog.Location = New-Object System.Drawing.Point(20, 270)
-$txtLog.Size = New-Object System.Drawing.Size(900, 360)
+$txtLog.Size = New-Object System.Drawing.Size(430, 360)
 $form.Controls.Add($txtLog)
+
+$labelPreview = New-Object System.Windows.Forms.Label
+$labelPreview.Text = 'Anteprime foto croppate'
+$labelPreview.Location = New-Object System.Drawing.Point(480, 245)
+$labelPreview.Size = New-Object System.Drawing.Size(220, 20)
+$form.Controls.Add($labelPreview)
+
+$previewBoxes = @()
+$rotateButtons = @()
+$photoPaths = @('','','','')
+
+for ($i = 0; $i -lt 4; $i++) {
+  $row = [int][Math]::Floor($i / 2)
+  $col = $i % 2
+
+  $baseX = 480 + ($col * 220)
+  $baseY = 270 + ($row * 180)
+
+  $lbl = New-Object System.Windows.Forms.Label
+  $lbl.Text = 'Foto ' + ($i + 1)
+  $lbl.Location = New-Object System.Drawing.Point($baseX, $baseY)
+  $lbl.Size = New-Object System.Drawing.Size(70, 20)
+  $form.Controls.Add($lbl)
+
+  $pb = New-Object System.Windows.Forms.PictureBox
+  $pb.Location = New-Object System.Drawing.Point($baseX, ($baseY + 20))
+  $pb.Size = New-Object System.Drawing.Size(200, 120)
+  $pb.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+  $pb.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+  $form.Controls.Add($pb)
+  $previewBoxes += $pb
+
+  $btnRotate = New-Object System.Windows.Forms.Button
+  $btnRotate.Text = 'Ruota 90°'
+  $btnRotate.Location = New-Object System.Drawing.Point($baseX, ($baseY + 145))
+  $btnRotate.Size = New-Object System.Drawing.Size(100, 28)
+  $btnRotate.Tag = $i
+  $btnRotate.Enabled = $false
+  $form.Controls.Add($btnRotate)
+  $rotateButtons += $btnRotate
+}
 
 function Append-Log([string]$msg) {
   $timestamp = (Get-Date).ToString('HH:mm:ss')
   $txtLog.AppendText("[$timestamp] $msg" + [Environment]::NewLine)
 }
 
-function Invoke-Backend([string[]]$arguments) {
+function Clear-PreviewImage([System.Windows.Forms.PictureBox]$pb) {
+  if ($null -ne $pb.Image) {
+    $img = $pb.Image
+    $pb.Image = $null
+    $img.Dispose()
+  }
+}
+
+function Set-Preview([int]$index, [string]$path) {
+  if ($index -lt 0 -or $index -ge $previewBoxes.Count) {
+    return
+  }
+
+  $pb = $previewBoxes[$index]
+  Clear-PreviewImage $pb
+
+  if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path $path)) {
+    $photoPaths[$index] = ''
+    $rotateButtons[$index].Enabled = $false
+    return
+  }
+
+  try {
+    $bytes = [System.IO.File]::ReadAllBytes($path)
+    $ms = New-Object System.IO.MemoryStream(, $bytes)
+    $img = [System.Drawing.Image]::FromStream($ms)
+    $bmp = New-Object System.Drawing.Bitmap($img)
+    $img.Dispose()
+    $ms.Dispose()
+    $pb.Image = $bmp
+    $photoPaths[$index] = $path
+    $rotateButtons[$index].Enabled = $true
+  } catch {
+    Append-Log ('Errore caricamento anteprima: ' + $_.Exception.Message)
+    $photoPaths[$index] = ''
+    $rotateButtons[$index].Enabled = $false
+  }
+}
+
+function Update-PreviewsFromOutput([string]$stdout) {
+  $paths = @()
+  foreach ($rawLine in ([System.Text.RegularExpressions.Regex]::Split($stdout, "\r?\n"))) {
+    $line = $rawLine.Trim()
+    if ($line.StartsWith('PHOTO=')) {
+      $paths += $line.Substring(6).Trim()
+    }
+  }
+
+  for ($i = 0; $i -lt 4; $i++) {
+    if ($i -lt $paths.Count) {
+      Set-Preview $i $paths[$i]
+    } else {
+      Set-Preview $i ''
+    }
+  }
+}
+
+function Invoke-Backend([string[]]$arguments, [switch]$NoSuccessPopup) {
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $AppExe
   $psi.Arguments = [string]::Join(' ', $arguments)
@@ -238,13 +336,16 @@ function Invoke-Backend([string[]]$arguments) {
   if ($stdout) { Append-Log $stdout.TrimEnd() }
   if ($stderr) { Append-Log $stderr.TrimEnd() }
 
+  $ok = ($proc.ExitCode -eq 0)
   if ($proc.ExitCode -ne 0) {
     [System.Windows.Forms.MessageBox]::Show("Operazione fallita. Controlla il log.", "Errore", 'OK', 'Error') | Out-Null
-    return $false
+    return @{ Success = $false; Stdout = $stdout; Stderr = $stderr }
   }
 
-  [System.Windows.Forms.MessageBox]::Show("Operazione completata.", "OK", 'OK', 'Information') | Out-Null
-  return $true
+  if (-not $NoSuccessPopup) {
+    [System.Windows.Forms.MessageBox]::Show("Operazione completata.", "OK", 'OK', 'Information') | Out-Null
+  }
+  return @{ Success = $ok; Stdout = $stdout; Stderr = $stderr }
 }
 
 $btnScanAndSplit.Add_Click({
@@ -260,7 +361,10 @@ $btnScanAndSplit.Add_Click({
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
   Append-Log 'Avvio scansione...'
   Append-Log ('Qualita scanner: DPI=' + [int]$numDpi.Value + ', Brightness=' + [int]$numBrightness.Value + ', Contrast=' + [int]$numContrast.Value + ', JPG Quality=' + [int]$numJpgQuality.Value)
-  [void](Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg))
+  $res = Invoke-Backend @('scan-process', $outArg, $dpiArg, $brightnessArg, $contrastArg, $jpgQualityArg)
+  if ($res.Success) {
+    Update-PreviewsFromOutput $res.Stdout
+  }
 })
 
 $btnProcessPath.Add_Click({
@@ -278,7 +382,10 @@ $btnProcessPath.Add_Click({
   $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
   Append-Log 'Avvio elaborazione file...'
   Append-Log ('Qualita output JPG: ' + [int]$numJpgQuality.Value)
-  [void](Invoke-Backend @('process', $inArg, $outArg, $jpgQualityArg))
+  $res = Invoke-Backend @('process', $inArg, $outArg, $jpgQualityArg)
+  if ($res.Success) {
+    Update-PreviewsFromOutput $res.Stdout
+  }
 })
 
 $btnOpenOutput.Add_Click({
@@ -287,6 +394,28 @@ $btnOpenOutput.Add_Click({
   }
   Start-Process explorer.exe $txtOutput.Text
 })
+
+for ($i = 0; $i -lt $rotateButtons.Count; $i++) {
+  $btn = $rotateButtons[$i]
+  $btn.Add_Click({
+    $idx = [int]$this.Tag
+    $path = $photoPaths[$idx]
+    if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path $path)) {
+      [System.Windows.Forms.MessageBox]::Show('Nessuna foto da ruotare.', 'Attenzione', 'OK', 'Warning') | Out-Null
+      return
+    }
+
+    $inArg = '--input "' + $path.Replace('"','\"') + '"'
+    $angleArg = '--angle 90'
+    $jpgQualityArg = '--jpg-quality ' + [int]$numJpgQuality.Value
+    Append-Log ('Rotazione foto ' + ($idx + 1) + ' di 90 gradi...')
+    $res = Invoke-Backend @('rotate', $inArg, $angleArg, $jpgQualityArg) -NoSuccessPopup
+    if ($res.Success) {
+      Set-Preview $idx $path
+      Append-Log ('Foto ' + ($idx + 1) + ' ruotata con successo.')
+    }
+  })
+}
 
 Append-Log "GUI pronta. Eseguibile backend: $AppExe"
 [void]$form.ShowDialog()

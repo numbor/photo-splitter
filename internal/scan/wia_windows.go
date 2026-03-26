@@ -28,7 +28,19 @@ $manager = New-Object -ComObject WIA.DeviceManager
 if ($manager.DeviceInfos.Count -lt 1) {
   throw 'Nessuno scanner rilevato via WIA.'
 }
-$device = $manager.DeviceInfos.Item(1).Connect()
+$device = $null
+$maxRetry = 5
+for ($attempt = 1; $attempt -le $maxRetry; $attempt++) {
+  try {
+    $device = $manager.DeviceInfos.Item(1).Connect()
+    break
+  } catch {
+    if ($attempt -eq $maxRetry) {
+      throw ('Impossibile connettersi allo scanner dopo ' + $maxRetry + ' tentativi: ' + $_.Exception.Message)
+    }
+    Start-Sleep -Seconds 3
+  }
+}
 if ($device.Items.Count -lt 1) {
   throw 'Lo scanner non espone item acquisibili.'
 }

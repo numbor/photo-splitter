@@ -26,6 +26,11 @@ func main() {
 				log.Fatal(err)
 			}
 			return
+		case "rotate":
+			if err := runRotateCmd(os.Args[2:]); err != nil {
+				log.Fatal(err)
+			}
+			return
 		}
 	}
 
@@ -117,5 +122,27 @@ func runScanProcessCmd(args []string) error {
 	for _, p := range result.Crops {
 		fmt.Printf("PHOTO=%s\n", p)
 	}
+	return nil
+}
+
+func runRotateCmd(args []string) error {
+	fs := flag.NewFlagSet("rotate", flag.ContinueOnError)
+	input := fs.String("input", "", "percorso immagine JPG da ruotare")
+	angle := fs.Int("angle", 90, "angolo rotazione (90,180,270)")
+	jpgQuality := fs.Int("jpg-quality", 95, "qualita JPG output (1-100)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *input == "" {
+		return fmt.Errorf("flag obbligatoria: --input")
+	}
+
+	if err := imageproc.RotateJPEGFile(*input, *angle, *jpgQuality); err != nil {
+		return err
+	}
+
+	fmt.Printf("ROTATED=%s\n", *input)
+	fmt.Printf("ANGLE=%d\n", *angle)
+	fmt.Printf("JPG_QUALITY=%d\n", *jpgQuality)
 	return nil
 }

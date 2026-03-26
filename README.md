@@ -42,6 +42,8 @@ Nella finestra puoi scegliere questi flussi:
    - salva la scansione principale in formato `TIFF` per preservare qualità.
    - puoi impostare qualità scanner: `DPI`, `Brightness`, `Contrast`.
    - puoi impostare la qualità di salvataggio dei JPG output (`JPG Quality`).
+   - al termine mostra le anteprime delle 4 foto croppate.
+   - ogni anteprima ha pulsante di rotazione (`Ruota 90°`).
 2. **Elabora file selezionato**
    - scegli una scansione già presente su disco e avvia il crop.
 3. **Apri cartella output**
@@ -71,3 +73,4 @@ In output vengono inoltre mantenute:
 - `photo-splitter.exe scan-process --output "D:\\scan\\project\\photo-splitter-go\\output" --dpi 300 --brightness 0 --contrast 0`
 - `photo-splitter.exe scan-process --output "D:\\scan\\project\\photo-splitter-go\\output" --dpi 300 --brightness 0 --contrast 0 --jpg-quality 95`
 - `photo-splitter.exe process --input "D:\\path\\scan.tiff" --output "D:\\scan\\project\\photo-splitter-go\\output" --jpg-quality 90`
+- `photo-splitter.exe rotate --input "D:\\scan\\project\\photo-splitter-go\\output\\20260326_123000\\photo_1.jpg" --angle 90 --jpg-quality 95`

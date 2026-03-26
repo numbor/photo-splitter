@@ -21,7 +21,7 @@ if errorlevel 1 (
 )
 
 echo [3/4] Build applicazione...
-go build -o photo-splitter.exe .
+go build -ldflags "-H windowsgui" -o photo-splitter.exe .
 if errorlevel 1 (
   echo ERRORE: build fallita.
   pause
