@@ -86,7 +86,7 @@ func runScanProcessCmd(args []string) error {
 	fs := flag.NewFlagSet("scan-process", flag.ContinueOnError)
 	output := fs.String("output", "", "cartella output")
 	scanFormat := fs.String("scan-format", "tiff", "formato scansione: jpeg|tiff (tiff piu fedele, jpeg piu veloce)")
-	dpi := fs.Int("dpi", 300, "risoluzione scanner DPI (75-1200)")
+	dpi := fs.Int("dpi", 600, "risoluzione scanner DPI (75-1200)")
 	brightness := fs.Int("brightness", 0, "luminosita scanner (-1000..1000)")
 	contrast := fs.Int("contrast", 0, "contrasto scanner (-1000..1000)")
 	jpgQuality := fs.Int("jpg-quality", 100, "qualita JPG output (1-100)")
@@ -139,6 +139,7 @@ func runScanProcessCmd(args []string) error {
 		AutoRotateCrops: *autoRotateCrops,
 		SkipWhiteBorder: false,
 		SkipEnhancement: !*enhanceCrops,
+		DPI:             *dpi,
 	})
 	if err != nil {
 		return err

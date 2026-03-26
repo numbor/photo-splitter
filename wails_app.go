@@ -179,6 +179,7 @@ func (a *DesktopApp) ScanAndProcess(req ScanAndProcessRequest) (OperationResult,
 		AutoRotateCrops: req.AutoRotateCrops,
 		SkipWhiteBorder: false,
 		SkipEnhancement: !req.EnhanceCrops,
+		DPI:             req.DPI,
 	})
 	if err != nil {
 		return OperationResult{}, err

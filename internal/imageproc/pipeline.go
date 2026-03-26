@@ -1,6 +1,7 @@
 package imageproc
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -27,6 +28,7 @@ type Options struct {
 	AutoRotateCrops bool
 	SkipWhiteBorder bool
 	SkipEnhancement bool
+	DPI             int
 }
 
 func (o Options) normalized() Options {
@@ -83,7 +85,7 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	cropFiles := make([]string, 0, 4)
 	for i, rect := range rects {
 		outPath := filepath.Join(outputDir, fmt.Sprintf("photo_%d.jpg", i+1))
-		if err := cropToJPEG(workingImage, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops, opt.SkipEnhancement); err != nil {
+		if err := cropToJPEG(workingImage, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops, opt.SkipEnhancement, opt.DPI); err != nil {
 			return Result{}, fmt.Errorf("crop foto %d: %w", i+1, err)
 		}
 		cropFiles = append(cropFiles, outPath)
@@ -181,7 +183,7 @@ func detect4Regions(img image.Image) []image.Rectangle {
 	return rects
 }
 
-func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool, skipEnhancement bool) error {
+func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQuality int, autoRotateCrops bool, skipEnhancement bool, dpi int) error {
 	crop := image.NewRGBA(image.Rect(0, 0, rect.Dx(), rect.Dy()))
 	draw.Draw(crop, crop.Bounds(), src, rect.Min, draw.Src)
 	trimmed := trimWhiteBorder(crop)
@@ -199,7 +201,36 @@ func cropToJPEG(src image.Image, rect image.Rectangle, outputPath string, jpegQu
 	}
 	defer f.Close()
 
+	if dpi > 0 {
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, finalImage, &jpeg.Options{Quality: jpegQuality}); err != nil {
+			return err
+		}
+		imgBytes := buf.Bytes()
+		setJFIFDPI(imgBytes, dpi)
+		_, err = f.Write(imgBytes)
+		return err
+	}
 	return jpeg.Encode(f, finalImage, &jpeg.Options{Quality: jpegQuality})
+}
+
+// setJFIFDPI patches the JFIF APP0 segment of an in-memory JPEG to set the DPI metadata.
+// JFIF APP0 layout from byte 0: FF D8 (SOI) | FF E0 (APP0) | len[2] | "JFIF\0"[5] | ver[2] | units[1] | Xdensity[2] | Ydensity[2]
+func setJFIFDPI(data []byte, dpi int) {
+	if len(data) < 18 {
+		return
+	}
+	if data[0] != 0xFF || data[1] != 0xD8 || data[2] != 0xFF || data[3] != 0xE0 {
+		return
+	}
+	if data[6] != 'J' || data[7] != 'F' || data[8] != 'I' || data[9] != 'F' || data[10] != 0x00 {
+		return
+	}
+	data[13] = 1 // density units: 1 = DPI
+	data[14] = byte(dpi >> 8)
+	data[15] = byte(dpi & 0xFF)
+	data[16] = byte(dpi >> 8)
+	data[17] = byte(dpi & 0xFF)
 }
 
 func trimWhiteBorder(src image.Image) image.Image {
@@ -324,33 +355,46 @@ func autoLevel(src *image.RGBA) *image.RGBA {
 	b := src.Bounds()
 	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
 
-	minR, minG, minB := uint8(255), uint8(255), uint8(255)
-	maxR, maxG, maxB := uint8(0), uint8(0), uint8(0)
-
+	// Build per-channel histograms.
+	var histR, histG, histB [256]int
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		for x := b.Min.X; x < b.Max.X; x++ {
 			r, g, bl, _ := src.At(x, y).RGBA()
-			r8, g8, b8 := uint8(r>>8), uint8(g>>8), uint8(bl>>8)
-			if r8 < minR {
-				minR = r8
-			}
-			if g8 < minG {
-				minG = g8
-			}
-			if b8 < minB {
-				minB = b8
-			}
-			if r8 > maxR {
-				maxR = r8
-			}
-			if g8 > maxG {
-				maxG = g8
-			}
-			if b8 > maxB {
-				maxB = b8
-			}
+			histR[r>>8]++
+			histG[g>>8]++
+			histB[bl>>8]++
 		}
 	}
+
+	// Use 1st/99th percentile to ignore scanner noise outliers instead of
+	// absolute min/max (a single dark pixel would otherwise prevent any stretch).
+	total := b.Dx() * b.Dy()
+	clip := max(1, total/100)
+
+	percLow := func(hist *[256]int) uint8 {
+		cum := 0
+		for i := 0; i < 256; i++ {
+			cum += hist[i]
+			if cum >= clip {
+				return uint8(i)
+			}
+		}
+		return 0
+	}
+	percHigh := func(hist *[256]int) uint8 {
+		cum := 0
+		for i := 255; i >= 0; i-- {
+			cum += hist[i]
+			if cum >= clip {
+				return uint8(i)
+			}
+		}
+		return 255
+	}
+
+	minR, maxR := percLow(&histR), percHigh(&histR)
+	minG, maxG := percLow(&histG), percHigh(&histG)
+	minB, maxB := percLow(&histB), percHigh(&histB)
 
 	scale := func(v, minV, maxV uint8) uint8 {
 		if maxV <= minV {
