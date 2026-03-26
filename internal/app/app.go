@@ -74,16 +74,26 @@ $form.MinimumSize = New-Object System.Drawing.Size(980, 700)
 $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $form.BackColor = [System.Drawing.Color]::FromArgb(245, 247, 250)
 
+$colorTextPrimary = [System.Drawing.Color]::FromArgb(36, 44, 56)
+$colorTextMuted = [System.Drawing.Color]::FromArgb(88, 99, 112)
+$colorSurface = [System.Drawing.Color]::White
+$colorPrimary = [System.Drawing.Color]::FromArgb(37, 99, 235)
+$colorPrimaryHover = [System.Drawing.Color]::FromArgb(29, 78, 216)
+$colorSecondary = [System.Drawing.Color]::FromArgb(16, 185, 129)
+$colorSecondaryHover = [System.Drawing.Color]::FromArgb(5, 150, 105)
+
 $labelOutput = New-Object System.Windows.Forms.Label
 $labelOutput.Text = 'Cartella output'
 $labelOutput.Location = New-Object System.Drawing.Point(20, 20)
 $labelOutput.Size = New-Object System.Drawing.Size(140, 20)
+$labelOutput.ForeColor = $colorTextPrimary
 $form.Controls.Add($labelOutput)
 
 $txtOutput = New-Object System.Windows.Forms.TextBox
 $txtOutput.Location = New-Object System.Drawing.Point(20, 45)
 $txtOutput.Size = New-Object System.Drawing.Size(760, 25)
 $txtOutput.Text = $DefaultOutput
+$txtOutput.BackColor = $colorSurface
 $txtOutput.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($txtOutput)
 
@@ -91,6 +101,10 @@ $btnBrowseOutput = New-Object System.Windows.Forms.Button
 $btnBrowseOutput.Text = 'Scegli...'
 $btnBrowseOutput.Location = New-Object System.Drawing.Point(800, 43)
 $btnBrowseOutput.Size = New-Object System.Drawing.Size(120, 30)
+$btnBrowseOutput.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnBrowseOutput.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(206, 213, 220)
+$btnBrowseOutput.BackColor = [System.Drawing.Color]::FromArgb(249, 250, 251)
+$btnBrowseOutput.ForeColor = $colorTextPrimary
 $btnBrowseOutput.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($btnBrowseOutput)
 
@@ -105,11 +119,13 @@ $labelScan = New-Object System.Windows.Forms.Label
 $labelScan.Text = 'Percorso immagine scannerizzata (opzionale)'
 $labelScan.Location = New-Object System.Drawing.Point(20, 90)
 $labelScan.Size = New-Object System.Drawing.Size(350, 20)
+$labelScan.ForeColor = $colorTextPrimary
 $form.Controls.Add($labelScan)
 
 $txtScan = New-Object System.Windows.Forms.TextBox
 $txtScan.Location = New-Object System.Drawing.Point(20, 115)
 $txtScan.Size = New-Object System.Drawing.Size(760, 25)
+$txtScan.BackColor = $colorSurface
 $txtScan.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($txtScan)
 
@@ -117,6 +133,10 @@ $btnBrowseScan = New-Object System.Windows.Forms.Button
 $btnBrowseScan.Text = 'Apri file...'
 $btnBrowseScan.Location = New-Object System.Drawing.Point(800, 113)
 $btnBrowseScan.Size = New-Object System.Drawing.Size(120, 30)
+$btnBrowseScan.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnBrowseScan.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(206, 213, 220)
+$btnBrowseScan.BackColor = [System.Drawing.Color]::FromArgb(249, 250, 251)
+$btnBrowseScan.ForeColor = $colorTextPrimary
 $btnBrowseScan.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($btnBrowseScan)
 
@@ -132,6 +152,7 @@ $labelDpi = New-Object System.Windows.Forms.Label
 $labelDpi.Text = 'DPI'
 $labelDpi.Location = New-Object System.Drawing.Point(20, 150)
 $labelDpi.Size = New-Object System.Drawing.Size(40, 20)
+$labelDpi.ForeColor = $colorTextMuted
 $form.Controls.Add($labelDpi)
 
 $numDpi = New-Object System.Windows.Forms.NumericUpDown
@@ -147,6 +168,7 @@ $labelBrightness = New-Object System.Windows.Forms.Label
 $labelBrightness.Text = 'Brightness'
 $labelBrightness.Location = New-Object System.Drawing.Point(180, 150)
 $labelBrightness.Size = New-Object System.Drawing.Size(80, 20)
+$labelBrightness.ForeColor = $colorTextMuted
 $form.Controls.Add($labelBrightness)
 
 $numBrightness = New-Object System.Windows.Forms.NumericUpDown
@@ -162,6 +184,7 @@ $labelContrast = New-Object System.Windows.Forms.Label
 $labelContrast.Text = 'Contrast'
 $labelContrast.Location = New-Object System.Drawing.Point(380, 150)
 $labelContrast.Size = New-Object System.Drawing.Size(70, 20)
+$labelContrast.ForeColor = $colorTextMuted
 $form.Controls.Add($labelContrast)
 
 $numContrast = New-Object System.Windows.Forms.NumericUpDown
@@ -177,6 +200,7 @@ $labelJpgQuality = New-Object System.Windows.Forms.Label
 $labelJpgQuality.Text = 'JPG Quality'
 $labelJpgQuality.Location = New-Object System.Drawing.Point(570, 150)
 $labelJpgQuality.Size = New-Object System.Drawing.Size(80, 20)
+$labelJpgQuality.ForeColor = $colorTextMuted
 $form.Controls.Add($labelJpgQuality)
 
 $numJpgQuality = New-Object System.Windows.Forms.NumericUpDown
@@ -192,6 +216,7 @@ $labelScanFormat = New-Object System.Windows.Forms.Label
 $labelScanFormat.Text = 'Formato scansione'
 $labelScanFormat.Location = New-Object System.Drawing.Point(760, 150)
 $labelScanFormat.Size = New-Object System.Drawing.Size(140, 20)
+$labelScanFormat.ForeColor = $colorTextMuted
 $labelScanFormat.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($labelScanFormat)
 
@@ -210,6 +235,7 @@ $chkAutoRotateCrops.Text = 'Ruota automaticamente i crop di 90° a destra'
 $chkAutoRotateCrops.Location = New-Object System.Drawing.Point(20, 176)
 $chkAutoRotateCrops.Size = New-Object System.Drawing.Size(340, 20)
 $chkAutoRotateCrops.Checked = $true
+$chkAutoRotateCrops.ForeColor = $colorTextPrimary
 $form.Controls.Add($chkAutoRotateCrops)
 
 $chkAddBorder = New-Object System.Windows.Forms.CheckBox
@@ -217,27 +243,37 @@ $chkAddBorder.Text = 'Aggiungi bordo bianco alla scansione'
 $chkAddBorder.Location = New-Object System.Drawing.Point(380, 176)
 $chkAddBorder.Size = New-Object System.Drawing.Size(300, 20)
 $chkAddBorder.Checked = $true
+$chkAddBorder.ForeColor = $colorTextPrimary
 $form.Controls.Add($chkAddBorder)
 
 $btnScanAndSplit = New-Object System.Windows.Forms.Button
 $btnScanAndSplit.Text = 'Scansiona e separa 4 foto'
 $btnScanAndSplit.Location = New-Object System.Drawing.Point(20, 190)
 $btnScanAndSplit.Size = New-Object System.Drawing.Size(240, 36)
-$btnScanAndSplit.FlatStyle = [System.Windows.Forms.FlatStyle]::System
+$btnScanAndSplit.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnScanAndSplit.FlatAppearance.BorderSize = 0
+$btnScanAndSplit.BackColor = $colorPrimary
+$btnScanAndSplit.ForeColor = [System.Drawing.Color]::White
 $form.Controls.Add($btnScanAndSplit)
 
 $btnProcessPath = New-Object System.Windows.Forms.Button
 $btnProcessPath.Text = 'Elabora file selezionato'
 $btnProcessPath.Location = New-Object System.Drawing.Point(280, 190)
 $btnProcessPath.Size = New-Object System.Drawing.Size(220, 36)
-$btnProcessPath.FlatStyle = [System.Windows.Forms.FlatStyle]::System
+$btnProcessPath.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnProcessPath.FlatAppearance.BorderSize = 0
+$btnProcessPath.BackColor = $colorSecondary
+$btnProcessPath.ForeColor = [System.Drawing.Color]::White
 $form.Controls.Add($btnProcessPath)
 
 $btnOpenOutput = New-Object System.Windows.Forms.Button
 $btnOpenOutput.Text = 'Apri cartella output'
 $btnOpenOutput.Location = New-Object System.Drawing.Point(520, 190)
 $btnOpenOutput.Size = New-Object System.Drawing.Size(180, 36)
-$btnOpenOutput.FlatStyle = [System.Windows.Forms.FlatStyle]::System
+$btnOpenOutput.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnOpenOutput.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(186, 195, 206)
+$btnOpenOutput.BackColor = [System.Drawing.Color]::FromArgb(241, 245, 249)
+$btnOpenOutput.ForeColor = $colorTextPrimary
 $btnOpenOutput.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($btnOpenOutput)
 
@@ -245,6 +281,7 @@ $labelLog = New-Object System.Windows.Forms.Label
 $labelLog.Text = 'Log'
 $labelLog.Location = New-Object System.Drawing.Point(20, 245)
 $labelLog.Size = New-Object System.Drawing.Size(120, 20)
+$labelLog.ForeColor = $colorTextPrimary
 $form.Controls.Add($labelLog)
 
 $txtLog = New-Object System.Windows.Forms.TextBox
@@ -254,12 +291,15 @@ $txtLog.ReadOnly = $true
 $txtLog.Location = New-Object System.Drawing.Point(20, 270)
 $txtLog.Size = New-Object System.Drawing.Size(430, 360)
 $txtLog.Font = New-Object System.Drawing.Font('Consolas', 9)
+$txtLog.BackColor = [System.Drawing.Color]::FromArgb(252, 252, 253)
+$txtLog.ForeColor = $colorTextPrimary
 $form.Controls.Add($txtLog)
 
 $labelPreview = New-Object System.Windows.Forms.Label
 $labelPreview.Text = 'Anteprime foto croppate'
 $labelPreview.Location = New-Object System.Drawing.Point(480, 245)
 $labelPreview.Size = New-Object System.Drawing.Size(220, 20)
+$labelPreview.ForeColor = $colorTextPrimary
 $form.Controls.Add($labelPreview)
 
 $previewBoxes = @()
@@ -278,6 +318,7 @@ for ($i = 0; $i -lt 4; $i++) {
   $lbl.Text = 'Foto ' + ($i + 1)
   $lbl.Location = New-Object System.Drawing.Point($baseX, $baseY)
   $lbl.Size = New-Object System.Drawing.Size(70, 20)
+  $lbl.ForeColor = $colorTextMuted
   $form.Controls.Add($lbl)
   $previewLabels += $lbl
 
@@ -286,6 +327,7 @@ for ($i = 0; $i -lt 4; $i++) {
   $pb.Size = New-Object System.Drawing.Size(200, 120)
   $pb.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
   $pb.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+  $pb.BackColor = [System.Drawing.Color]::FromArgb(255, 255, 255)
   $form.Controls.Add($pb)
   $previewBoxes += $pb
 
@@ -293,11 +335,20 @@ for ($i = 0; $i -lt 4; $i++) {
   $btnRotate.Text = 'Ruota 90°'
   $btnRotate.Location = New-Object System.Drawing.Point($baseX, ($baseY + 145))
   $btnRotate.Size = New-Object System.Drawing.Size(100, 28)
+  $btnRotate.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+  $btnRotate.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(194, 203, 214)
+  $btnRotate.BackColor = [System.Drawing.Color]::FromArgb(248, 250, 252)
+  $btnRotate.ForeColor = $colorTextPrimary
   $btnRotate.Tag = $i
   $btnRotate.Enabled = $false
   $form.Controls.Add($btnRotate)
   $rotateButtons += $btnRotate
 }
+
+$btnScanAndSplit.Add_MouseEnter({ $btnScanAndSplit.BackColor = $colorPrimaryHover })
+$btnScanAndSplit.Add_MouseLeave({ $btnScanAndSplit.BackColor = $colorPrimary })
+$btnProcessPath.Add_MouseEnter({ $btnProcessPath.BackColor = $colorSecondaryHover })
+$btnProcessPath.Add_MouseLeave({ $btnProcessPath.BackColor = $colorSecondary })
 
 function Update-ResponsiveLayout() {
   $clientW = $form.ClientSize.Width
