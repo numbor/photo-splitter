@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,13 +49,6 @@ type RotateRequest struct {
 
 type ScanRequest struct {
 	Output string `json:"output"`
-	DPI    int    `json:"dpi"`
-	Device string `json:"device"`
-}
-
-type DeviceListResult struct {
-	Devices []string `json:"devices"`
-	Raw     string   `json:"raw"`
 }
 
 type githubRelease struct {
@@ -197,9 +189,9 @@ func (a *DesktopApp) RotatePhoto(req RotateRequest) (string, error) {
 	return inputPath, nil
 }
 
-func (a *DesktopApp) ScanPhotoTWAIN(req ScanRequest) (string, error) {
+func (a *DesktopApp) ScanWithNAPS2(req ScanRequest) (string, error) {
 	if runtime.GOOS != "windows" {
-		return "", fmt.Errorf("la scansione TWAIN e supportata solo su Windows")
+		return "", fmt.Errorf("la scansione NAPS2 e supportata solo su Windows")
 	}
 
 	outputDir := strings.TrimSpace(req.Output)
@@ -211,13 +203,8 @@ func (a *DesktopApp) ScanPhotoTWAIN(req ScanRequest) (string, error) {
 		return "", fmt.Errorf("creazione cartella raw_scans: %w", err)
 	}
 
-	dpi := req.DPI
-	if dpi <= 0 {
-		dpi = 300
-	}
-
 	scanPath := filepath.Join(rawScansDir, "scan_"+time.Now().Format("20060102_150405")+".jpg")
-	naps2Path, args := a.buildTWAINScanCommand(req, scanPath)
+	naps2Path, args := a.buildNAPS2ScanCommand(scanPath)
 
 	cmd := exec.Command(naps2Path, args...)
 	hideExternalConsoleWindow(cmd)
@@ -227,7 +214,7 @@ func (a *DesktopApp) ScanPhotoTWAIN(req ScanRequest) (string, error) {
 		if msg == "" {
 			msg = err.Error()
 		}
-		return "", fmt.Errorf("acquisizione TWAIN fallita: %s", msg)
+		return "", fmt.Errorf("acquisizione NAPS2 fallita: %s", msg)
 	}
 
 	if _, err := os.Stat(scanPath); err != nil {
@@ -237,25 +224,14 @@ func (a *DesktopApp) ScanPhotoTWAIN(req ScanRequest) (string, error) {
 	return scanPath, nil
 }
 
-func (a *DesktopApp) PreviewTWAINScanCommand(req ScanRequest) string {
+func (a *DesktopApp) PreviewNAPS2ScanCommand(req ScanRequest) string {
 	outputDir := strings.TrimSpace(req.Output)
 	if outputDir == "" {
 		outputDir = a.DefaultOutputDir()
 	}
-	dpi := req.DPI
-	if dpi <= 0 {
-		dpi = 300
-	}
-
 	rawScansDir := filepath.Join(outputDir, "raw_scans")
 	scanPath := filepath.Join(rawScansDir, "scan_<timestamp>.jpg")
-	naps2Path, args := a.buildTWAINScanCommand(ScanRequest{DPI: dpi, Device: req.Device}, scanPath)
-	return commandLinePreview(naps2Path, args)
-}
-
-func (a *DesktopApp) PreviewListTWAINDevicesCommand() string {
-	naps2Path := a.resolveNAPS2ConsolePath()
-	args := []string{"--listdevices", "--driver", "twain"}
+	naps2Path, args := a.buildNAPS2ScanCommand(scanPath)
 	return commandLinePreview(naps2Path, args)
 }
 
@@ -273,9 +249,9 @@ func (a *DesktopApp) EnsureNAPS2Portable() (string, error) {
 		return "", fmt.Errorf("lettura working directory fallita: %w", err)
 	}
 
-	baseDir := filepath.Join(cwd, "nasp32")
+	baseDir := filepath.Join(cwd, "naps2")
 	if err := os.MkdirAll(baseDir, 0o755); err != nil {
-		return "", fmt.Errorf("creazione cartella nasp32 fallita: %w", err)
+		return "", fmt.Errorf("creazione cartella naps2 fallita: %w", err)
 	}
 
 	downloadURL := fetchNAPS2PortableURL()
@@ -293,37 +269,6 @@ func (a *DesktopApp) EnsureNAPS2Portable() (string, error) {
 	}
 
 	return "", fmt.Errorf("NAPS2 decompresso ma NAPS2.Console.exe non trovato")
-}
-
-func (a *DesktopApp) ListTWAINDevices() (DeviceListResult, error) {
-	if runtime.GOOS != "windows" {
-		return DeviceListResult{}, fmt.Errorf("la scansione TWAIN e supportata solo su Windows")
-	}
-
-	naps2Path := a.resolveNAPS2ConsolePath()
-	cmd := exec.Command(naps2Path, "--listdevices", "--driver", "twain")
-	hideExternalConsoleWindow(cmd)
-	output, err := cmd.CombinedOutput()
-	raw := strings.TrimSpace(string(output))
-	if err != nil {
-		msg := raw
-		if msg == "" {
-			msg = err.Error()
-		}
-		return DeviceListResult{}, fmt.Errorf("elenco dispositivi TWAIN fallito: %s", msg)
-	}
-
-	lines := strings.Split(raw, "\n")
-	devices := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		devices = append(devices, trimmed)
-	}
-
-	return DeviceListResult{Devices: devices, Raw: raw}, nil
 }
 
 func (a *DesktopApp) LaunchNAPS2GUI() (string, error) {
@@ -364,7 +309,7 @@ func (a *DesktopApp) resolveNAPS2ConsolePath() string {
 			}
 		}
 
-		baseDir := filepath.Join(cwd, "nasp32")
+		baseDir := filepath.Join(cwd, "naps2")
 		if found := findNAPS2ConsoleUnder(baseDir); found != "" {
 			return found
 		}
@@ -396,8 +341,8 @@ func (a *DesktopApp) resolveNAPS2GUIPath() string {
 	cwd, err := os.Getwd()
 	if err == nil {
 		fallbacks := []string{
-			filepath.Join(cwd, "nasp32", "naps2-8.2.1-win-x64", "NAPS2.Portable.exe"),
-			filepath.Join(cwd, "nasp32", "naps2-8.2.1-win-x64", "App", "NAPS2.exe"),
+			filepath.Join(cwd, "naps2", "naps2-8.2.1-win-x64", "NAPS2.Portable.exe"),
+			filepath.Join(cwd, "naps2", "naps2-8.2.1-win-x64", "App", "NAPS2.exe"),
 		}
 		for _, candidate := range fallbacks {
 			if _, statErr := os.Stat(candidate); statErr == nil {
@@ -409,22 +354,11 @@ func (a *DesktopApp) resolveNAPS2GUIPath() string {
 	return ""
 }
 
-func (a *DesktopApp) buildTWAINScanCommand(req ScanRequest, scanPath string) (string, []string) {
+func (a *DesktopApp) buildNAPS2ScanCommand(scanPath string) (string, []string) {
 	naps2Path := a.resolveNAPS2ConsolePath()
-	dpi := req.DPI
-	if dpi <= 0 {
-		dpi = 300
-	}
-
 	args := []string{
 		"-o", scanPath,
 		"-f",
-		"--driver", "twain",
-		"--dpi", strconv.Itoa(dpi),
-	}
-	device := strings.TrimSpace(req.Device)
-	if device != "" {
-		args = append(args, "--noprofile", "--device", device)
 	}
 	return naps2Path, args
 }

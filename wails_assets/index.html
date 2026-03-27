@@ -156,26 +156,6 @@
         <label>JPG Quality</label>
         <input id="jpgQuality" type="number" min="1" max="100" value="90" />
       </div>
-      <div>
-        <label>DPI scansione TWAIN</label>
-        <select id="scanDpi">
-          <option value="150">150</option>
-          <option value="200">200</option>
-          <option value="300" selected>300</option>
-          <option value="400">400</option>
-          <option value="600">600</option>
-        </select>
-      </div>
-      <div>
-        <label>Dispositivo TWAIN (opzionale)</label>
-        <input id="scanDevice" type="text" placeholder="Es. Canon LiDE" />
-      </div>
-      <div>
-        <label>Dispositivi TWAIN rilevati</label>
-        <select id="scanDeviceList">
-          <option value="">(nessun dispositivo caricato)</option>
-        </select>
-      </div>
     </div>
 
     <div class="checks">
@@ -185,8 +165,7 @@
     </div>
 
     <div class="actions">
-      <button class="primary" id="btnScanTwain">Scansiona via TWAIN</button>
-      <button id="btnLoadTwainDevices">Carica dispositivi TWAIN</button>
+      <button class="primary" id="btnScanNaps2">Scansiona con NAPS2</button>
       <button id="btnOpenNapsGui">Apri GUI NAPS2</button>
       <button class="secondary" id="btnProcess">Elabora file selezionato</button>
       <button id="btnOpenOutput">Apri cartella output</button>
@@ -211,9 +190,6 @@
     const outputPath = document.getElementById("outputPath");
     const inputPath = document.getElementById("inputPath");
     const jpgQuality = document.getElementById("jpgQuality");
-    const scanDpi = document.getElementById("scanDpi");
-    const scanDevice = document.getElementById("scanDevice");
-    const scanDeviceList = document.getElementById("scanDeviceList");
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
@@ -311,27 +287,6 @@
       }
     }
 
-    async function loadTwainDevices() {
-      appendLog("Lettura dispositivi TWAIN in corso...");
-      const result = await app().ListTWAINDevices();
-      const devices = result.devices || [];
-
-      scanDeviceList.innerHTML = "";
-      const defaultOpt = document.createElement("option");
-      defaultOpt.value = "";
-      defaultOpt.textContent = devices.length ? "(seleziona dispositivo)" : "(nessun dispositivo trovato)";
-      scanDeviceList.appendChild(defaultOpt);
-
-      devices.forEach((deviceName) => {
-        const opt = document.createElement("option");
-        opt.value = deviceName;
-        opt.textContent = deviceName;
-        scanDeviceList.appendChild(opt);
-      });
-
-      appendLog(`Dispositivi TWAIN trovati: ${devices.length}`);
-    }
-
     document.getElementById("btnPickOutput").addEventListener("click", async () => {
       try {
         const selected = await app().SelectOutputDir(outputPath.value || "");
@@ -372,22 +327,17 @@
       }
     });
 
-    document.getElementById("btnScanTwain").addEventListener("click", async () => {
+    document.getElementById("btnScanNaps2").addEventListener("click", async () => {
       try {
-        const dpi = parseInt(scanDpi.value, 10) || 300;
-        appendLog(`Avvio scansione TWAIN a ${dpi} DPI...`);
+        appendLog("Avvio scansione NAPS2 con profilo corrente...");
 
-        const scanPreview = await app().PreviewTWAINScanCommand({
+        const scanPreview = await app().PreviewNAPS2ScanCommand({
           output: outputPath.value,
-          dpi,
-          device: scanDevice.value || "",
         });
         appendLog(`Eseguo NAPS2: ${scanPreview}`);
 
-        const scannedPath = await app().ScanPhotoTWAIN({
+        const scannedPath = await app().ScanWithNAPS2({
           output: outputPath.value,
-          dpi,
-          device: scanDevice.value || "",
         });
 
         inputPath.value = scannedPath;
@@ -404,19 +354,8 @@
         });
         await updateResult(result);
       } catch (err) {
-        appendLog(`Errore scansione/elaborazione TWAIN: ${err}`);
-        alert("Scansione o elaborazione TWAIN fallita. Controlla il log.");
-      }
-    });
-
-    document.getElementById("btnLoadTwainDevices").addEventListener("click", async () => {
-      try {
-        const listPreview = await app().PreviewListTWAINDevicesCommand();
-        appendLog(`Eseguo NAPS2: ${listPreview}`);
-        await loadTwainDevices();
-      } catch (err) {
-        appendLog(`Errore elenco dispositivi TWAIN: ${err}`);
-        alert("Impossibile leggere i dispositivi TWAIN. Controlla il log.");
+        appendLog(`Errore scansione/elaborazione NAPS2: ${err}`);
+        alert("Scansione o elaborazione NAPS2 fallita. Controlla il log.");
       }
     });
 
@@ -428,12 +367,6 @@
       } catch (err) {
         appendLog(`Errore avvio GUI NAPS2: ${err}`);
         alert("Impossibile avviare la GUI di NAPS2. Controlla il log.");
-      }
-    });
-
-    scanDeviceList.addEventListener("change", () => {
-      if (scanDeviceList.value) {
-        scanDevice.value = scanDeviceList.value;
       }
     });
 

@@ -2,7 +2,7 @@
 
 Applicativo in Go con interfaccia grafica desktop basata su Wails per:
 - caricare una singola immagine iniziale,
-- acquisire una scansione da scanner TWAIN tramite `NAPS2.Console.exe`,
+- acquisire una scansione tramite `NAPS2.Console.exe`,
 - aggiungere un leggero bordo bianco in modo nativo,
 - individuare 4 fotografie presenti nell'immagine,
 - fare crop e salvare 4 immagini separate.
@@ -11,11 +11,11 @@ Applicativo in Go con interfaccia grafica desktop basata su Wails per:
 
 - Go 1.22+
 - Microsoft Edge WebView2 Runtime
-- NAPS2 portable estratto in `nasp32/naps2-8.2.1-win-x64/App/NAPS2.Console.exe`
+- NAPS2 portable estratto in `naps2/naps2-8.2.1-win-x64/App/NAPS2.Console.exe`
    (in alternativa imposta `NAPS2_CONSOLE_PATH`)
 
-Se `nasp32` non e presente all'avvio, l'app prova automaticamente a scaricare
-la versione portable di NAPS2 (x64) e decomprimerla in `nasp32`.
+Se `naps2` non e presente all'avvio, l'app prova automaticamente a scaricare
+la versione portable di NAPS2 (x64) e decomprimerla in `naps2`.
 
 Nessuna dipendenza da gcc/MinGW.
 
@@ -49,11 +49,9 @@ Nella finestra puoi usare questi flussi:
    - puoi attivare/disattivare l'aggiunta di bordo bianco (`Aggiungi bordo bianco all'immagine`).
    - al termine mostra le anteprime delle 4 foto croppate.
    - ogni anteprima ha pulsante di rotazione (`Ruota 90°`).
-2. **Scansiona via TWAIN**
-   - usa `NAPS2.Console.exe` con driver TWAIN.
-   - puoi scegliere i DPI (`DPI scansione TWAIN`).
-   - con `Carica dispositivi TWAIN` l'app richiama `--listdevices --driver twain` e mostra i device disponibili.
-   - puoi selezionare un dispositivo dalla lista, oppure inserirlo manualmente (match parziale del nome).
+2. **Scansiona con NAPS2**
+   - usa `NAPS2.Console.exe` con il profilo corrente configurato nella GUI NAPS2.
+   - non imposta DPI, driver o device da riga comando.
    - la scansione viene salvata in `output/raw_scans` e caricata automaticamente nel campo input.
 3. **Apri cartella output**
    - apre direttamente la cartella risultati in Esplora File.
@@ -67,7 +65,7 @@ Nella cartella output viene creato un sottofolder timestamp con:
 - `photo_3.jpg`
 - `photo_4.jpg`
 
-Le scansioni TWAIN vengono salvate in:
+Le scansioni NAPS2 vengono salvate in:
 - `output/raw_scans/scan_YYYYMMDD_HHMMSS.jpg`
 
 ## Note tecniche
