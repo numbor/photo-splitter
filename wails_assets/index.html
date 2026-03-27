@@ -299,6 +299,15 @@
       outputPath.value = await app().DefaultOutputDir();
       renderPreviews();
       appendLog("GUI Wails pronta.");
+      try {
+        appendLog("Verifica disponibilita NAPS2 portable...");
+        const bootstrapMsg = await app().EnsureNAPS2Portable();
+        if (bootstrapMsg) {
+          appendLog(bootstrapMsg);
+        }
+      } catch (err) {
+        appendLog(`Bootstrap NAPS2 fallito: ${err}`);
+      }
     }
 
     async function loadTwainDevices() {

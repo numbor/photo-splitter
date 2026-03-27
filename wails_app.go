@@ -1,11 +1,15 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,6 +57,14 @@ type ScanRequest struct {
 type DeviceListResult struct {
 	Devices []string `json:"devices"`
 	Raw     string   `json:"raw"`
+}
+
+type githubRelease struct {
+	TagName string `json:"tag_name"`
+	Assets  []struct {
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
+	} `json:"assets"`
 }
 
 type OperationResult struct {
@@ -247,6 +259,42 @@ func (a *DesktopApp) PreviewListTWAINDevicesCommand() string {
 	return commandLinePreview(naps2Path, args)
 }
 
+func (a *DesktopApp) EnsureNAPS2Portable() (string, error) {
+	if runtime.GOOS != "windows" {
+		return "Skip bootstrap NAPS2: non Windows.", nil
+	}
+
+	if existing := a.resolveNAPS2ConsolePath(); existing != "NAPS2.Console.exe" {
+		return "NAPS2 trovato: " + existing, nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("lettura working directory fallita: %w", err)
+	}
+
+	baseDir := filepath.Join(cwd, "nasp32")
+	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+		return "", fmt.Errorf("creazione cartella nasp32 fallita: %w", err)
+	}
+
+	downloadURL := fetchNAPS2PortableURL()
+	zipPath := filepath.Join(baseDir, "naps2-portable.zip")
+	if err := downloadFile(downloadURL, zipPath); err != nil {
+		return "", fmt.Errorf("download NAPS2 portable fallito: %w", err)
+	}
+
+	if err := unzipArchive(zipPath, baseDir); err != nil {
+		return "", fmt.Errorf("decompressione NAPS2 portable fallita: %w", err)
+	}
+
+	if resolved := a.resolveNAPS2ConsolePath(); resolved != "NAPS2.Console.exe" {
+		return "NAPS2 scaricato e pronto: " + resolved, nil
+	}
+
+	return "", fmt.Errorf("NAPS2 decompresso ma NAPS2.Console.exe non trovato")
+}
+
 func (a *DesktopApp) ListTWAINDevices() (DeviceListResult, error) {
 	if runtime.GOOS != "windows" {
 		return DeviceListResult{}, fmt.Errorf("la scansione TWAIN e supportata solo su Windows")
@@ -287,15 +335,16 @@ func (a *DesktopApp) resolveNAPS2ConsolePath() string {
 
 	cwd, err := os.Getwd()
 	if err == nil {
-		candidates := []string{
-			filepath.Join(cwd, "nasp32", "naps2-8.2.1-win-x64", "App", "NAPS2.Console.exe"),
-			filepath.Join(cwd, "..", "photo-splitter-go", "nasp32", "naps2-8.2.1-win-x64", "App", "NAPS2.Console.exe"),
-			filepath.Join(cwd, "NAPS2.Console.exe"),
-		}
+		candidates := []string{filepath.Join(cwd, "NAPS2.Console.exe")}
 		for _, candidate := range candidates {
 			if _, statErr := os.Stat(candidate); statErr == nil {
 				return candidate
 			}
+		}
+
+		baseDir := filepath.Join(cwd, "nasp32")
+		if found := findNAPS2ConsoleUnder(baseDir); found != "" {
+			return found
 		}
 	}
 
@@ -340,6 +389,154 @@ func quoteCommandArg(value string) string {
 	}
 	escaped := strings.ReplaceAll(value, "\"", "\\\"")
 	return "\"" + escaped + "\""
+}
+
+func findNAPS2ConsoleUnder(baseDir string) string {
+	info, err := os.Stat(baseDir)
+	if err != nil || !info.IsDir() {
+		return ""
+	}
+
+	var found string
+	_ = filepath.WalkDir(baseDir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil || d == nil || d.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(d.Name(), "NAPS2.Console.exe") {
+			found = path
+			return io.EOF
+		}
+		return nil
+	})
+	return found
+}
+
+func fetchNAPS2PortableURL() string {
+	const fallback = "https://github.com/cyanfish/naps2/releases/download/v8.2.1/naps2-8.2.1-win-x64.zip"
+	const apiURL = "https://api.github.com/repos/cyanfish/naps2/releases/latest"
+
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+	if err != nil {
+		return fallback
+	}
+	req.Header.Set("User-Agent", "photo-splitter-go")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fallback
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fallback
+	}
+
+	var rel githubRelease
+	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
+		return fallback
+	}
+
+	for _, asset := range rel.Assets {
+		if strings.HasSuffix(strings.ToLower(asset.Name), "-win-x64.zip") && asset.BrowserDownloadURL != "" {
+			return asset.BrowserDownloadURL
+		}
+	}
+
+	return fallback
+}
+
+func downloadFile(url, destination string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "photo-splitter-go")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("http status %s", resp.Status)
+	}
+
+	tmp := destination + ".tmp"
+	file, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(file, resp.Body); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+
+	if err := os.Rename(tmp, destination); err != nil {
+		return err
+	}
+	return nil
+}
+
+func unzipArchive(zipPath, destinationDir string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	if err := os.MkdirAll(destinationDir, 0o755); err != nil {
+		return err
+	}
+
+	for _, f := range r.File {
+		targetPath := filepath.Join(destinationDir, f.Name)
+		cleanDest := filepath.Clean(destinationDir) + string(os.PathSeparator)
+		cleanTarget := filepath.Clean(targetPath)
+		if !strings.HasPrefix(cleanTarget, cleanDest) {
+			return fmt.Errorf("percorso zip non valido: %s", f.Name)
+		}
+
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(cleanTarget, 0o755); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(cleanTarget), 0o755); err != nil {
+			return err
+		}
+
+		src, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		dst, err := os.OpenFile(cleanTarget, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
+		if err != nil {
+			_ = src.Close()
+			return err
+		}
+
+		if _, err := io.Copy(dst, src); err != nil {
+			_ = dst.Close()
+			_ = src.Close()
+			return err
+		}
+		if err := dst.Close(); err != nil {
+			_ = src.Close()
+			return err
+		}
+		if err := src.Close(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (a *DesktopApp) GetPhotoPreviewDataURL(path string) (string, error) {

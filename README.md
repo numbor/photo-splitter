@@ -14,6 +14,9 @@ Applicativo in Go con interfaccia grafica desktop basata su Wails per:
 - NAPS2 portable estratto in `nasp32/naps2-8.2.1-win-x64/App/NAPS2.Console.exe`
    (in alternativa imposta `NAPS2_CONSOLE_PATH`)
 
+Se `nasp32` non e presente all'avvio, l'app prova automaticamente a scaricare
+la versione portable di NAPS2 (x64) e decomprimerla in `nasp32`.
+
 Nessuna dipendenza da gcc/MinGW.
 
 ## Avvio rapido
