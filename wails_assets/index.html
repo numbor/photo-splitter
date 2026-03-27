@@ -156,6 +156,13 @@
         <label>JPG Quality</label>
         <input id="jpgQuality" type="number" min="1" max="100" value="90" />
       </div>
+      <div style="grid-column: span 2;">
+        <label>Profilo scanner NAPS2</label>
+        <select id="scanProfile"></select>
+      </div>
+      <div>
+        <button id="btnReloadProfiles" style="width:100%;">Ricarica profili</button>
+      </div>
     </div>
 
     <div class="checks">
@@ -193,6 +200,7 @@
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
+    const scanProfile = document.getElementById("scanProfile");
     const logBox = document.getElementById("log");
     const previews = document.getElementById("previews");
 
@@ -257,6 +265,44 @@
       }
     }
 
+    function getSelectedProfile() {
+      return (scanProfile.value || "").trim();
+    }
+
+    async function loadScanProfiles() {
+      scanProfile.innerHTML = "";
+      try {
+        const profiles = await app().ListNAPS2Profiles();
+        if (!profiles || !profiles.length) {
+          throw new Error("nessun profilo disponibile");
+        }
+
+        let selected = false;
+        profiles.forEach((profile) => {
+          const option = document.createElement("option");
+          option.value = profile.displayName || "";
+          option.textContent = profile.displayName || "(profilo senza nome)";
+          if (profile.isDefault && !selected) {
+            option.selected = true;
+            selected = true;
+          }
+          scanProfile.appendChild(option);
+        });
+
+        if (!selected && scanProfile.options.length > 0) {
+          scanProfile.selectedIndex = 0;
+        }
+
+        appendLog(`Profili NAPS2 caricati: ${scanProfile.options.length}`);
+      } catch (err) {
+        const fallback = document.createElement("option");
+        fallback.value = "";
+        fallback.textContent = "Nessun profilo trovato";
+        scanProfile.appendChild(fallback);
+        appendLog(`Errore caricamento profili NAPS2: ${err}`);
+      }
+    }
+
     async function updateResult(result) {
       const photos = result.photos || [];
       for (let i = 0; i < 4; i++) {
@@ -285,6 +331,7 @@
       } catch (err) {
         appendLog(`Bootstrap NAPS2 fallito: ${err}`);
       }
+      await loadScanProfiles();
     }
 
     document.getElementById("btnPickOutput").addEventListener("click", async () => {
@@ -329,15 +376,22 @@
 
     document.getElementById("btnScanNaps2").addEventListener("click", async () => {
       try {
-        appendLog("Avvio scansione NAPS2 con profilo corrente...");
+        const profile = getSelectedProfile();
+        if (!profile) {
+          alert("Seleziona un profilo scanner prima di avviare la scansione.");
+          return;
+        }
+        appendLog(`Avvio scansione NAPS2 con profilo: ${profile}`);
 
         const scanPreview = await app().PreviewNAPS2ScanCommand({
           output: outputPath.value,
+          profile,
         });
         appendLog(`Eseguo NAPS2: ${scanPreview}`);
 
         const scannedPath = await app().ScanWithNAPS2({
           output: outputPath.value,
+          profile,
         });
 
         inputPath.value = scannedPath;
@@ -357,6 +411,10 @@
         appendLog(`Errore scansione/elaborazione NAPS2: ${err}`);
         alert("Scansione o elaborazione NAPS2 fallita. Controlla il log.");
       }
+    });
+
+    document.getElementById("btnReloadProfiles").addEventListener("click", async () => {
+      await loadScanProfiles();
     });
 
     document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {

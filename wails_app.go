@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"io/fs"
@@ -48,7 +49,28 @@ type RotateRequest struct {
 }
 
 type ScanRequest struct {
-	Output string `json:"output"`
+	Output  string `json:"output"`
+	Profile string `json:"profile"`
+}
+
+type NAPS2Profile struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"displayName"`
+	DeviceName  string `json:"deviceName"`
+	IsDefault   bool   `json:"isDefault"`
+}
+
+type scanProfilesXML struct {
+	Profiles []scanProfileXML `xml:"ScanProfile"`
+}
+
+type scanProfileXML struct {
+	DisplayName string `xml:"DisplayName"`
+	IsDefault   bool   `xml:"IsDefault"`
+	Device      struct {
+		ID   string `xml:"ID"`
+		Name string `xml:"Name"`
+	} `xml:"Device"`
 }
 
 type githubRelease struct {
@@ -193,6 +215,9 @@ func (a *DesktopApp) ScanWithNAPS2(req ScanRequest) (string, error) {
 	if runtime.GOOS != "windows" {
 		return "", fmt.Errorf("la scansione NAPS2 e supportata solo su Windows")
 	}
+	if strings.TrimSpace(req.Profile) == "" {
+		return "", fmt.Errorf("seleziona un profilo scanner")
+	}
 
 	outputDir := strings.TrimSpace(req.Output)
 	if outputDir == "" {
@@ -204,7 +229,7 @@ func (a *DesktopApp) ScanWithNAPS2(req ScanRequest) (string, error) {
 	}
 
 	scanPath := filepath.Join(rawScansDir, "scan_"+time.Now().Format("20060102_150405")+".jpg")
-	naps2Path, args := a.buildNAPS2ScanCommand(scanPath)
+	naps2Path, args := a.buildNAPS2ScanCommand(scanPath, req.Profile)
 
 	cmd := exec.Command(naps2Path, args...)
 	hideExternalConsoleWindow(cmd)
@@ -231,8 +256,52 @@ func (a *DesktopApp) PreviewNAPS2ScanCommand(req ScanRequest) string {
 	}
 	rawScansDir := filepath.Join(outputDir, "raw_scans")
 	scanPath := filepath.Join(rawScansDir, "scan_<timestamp>.jpg")
-	naps2Path, args := a.buildNAPS2ScanCommand(scanPath)
+	naps2Path, args := a.buildNAPS2ScanCommand(scanPath, req.Profile)
 	return commandLinePreview(naps2Path, args)
+}
+
+func (a *DesktopApp) ListNAPS2Profiles() ([]NAPS2Profile, error) {
+	profilesPath := a.resolveNAPS2ProfilesPath()
+	if profilesPath == "" {
+		return nil, fmt.Errorf("file profiles.xml non trovato")
+	}
+
+	xmlBytes, err := os.ReadFile(profilesPath)
+	if err != nil {
+		return nil, fmt.Errorf("lettura profiles.xml fallita: %w", err)
+	}
+
+	var parsed scanProfilesXML
+	if err := xml.Unmarshal(xmlBytes, &parsed); err != nil {
+		return nil, fmt.Errorf("parsing profiles.xml fallito: %w", err)
+	}
+
+	profiles := make([]NAPS2Profile, 0, len(parsed.Profiles))
+	for _, p := range parsed.Profiles {
+		displayName := strings.TrimSpace(p.DisplayName)
+		if displayName == "" {
+			displayName = strings.TrimSpace(p.Device.Name)
+		}
+		if displayName == "" {
+			displayName = strings.TrimSpace(p.Device.ID)
+		}
+		if displayName == "" {
+			continue
+		}
+
+		profiles = append(profiles, NAPS2Profile{
+			ID:          strings.TrimSpace(p.Device.ID),
+			DisplayName: displayName,
+			DeviceName:  strings.TrimSpace(p.Device.Name),
+			IsDefault:   p.IsDefault,
+		})
+	}
+
+	if len(profiles) == 0 {
+		return nil, fmt.Errorf("nessun profilo scanner trovato in profiles.xml")
+	}
+
+	return profiles, nil
 }
 
 func (a *DesktopApp) EnsureNAPS2Portable() (string, error) {
@@ -354,13 +423,54 @@ func (a *DesktopApp) resolveNAPS2GUIPath() string {
 	return ""
 }
 
-func (a *DesktopApp) buildNAPS2ScanCommand(scanPath string) (string, []string) {
+func (a *DesktopApp) buildNAPS2ScanCommand(scanPath, profile string) (string, []string) {
 	naps2Path := a.resolveNAPS2ConsolePath()
 	args := []string{
+		"--profile", strings.TrimSpace(profile),
 		"-o", scanPath,
 		"-f",
 	}
 	return naps2Path, args
+}
+
+func (a *DesktopApp) resolveNAPS2ProfilesPath() string {
+	if envPath := strings.TrimSpace(os.Getenv("NAPS2_PROFILES_PATH")); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath
+		}
+	}
+
+	if consolePath := a.resolveNAPS2ConsolePath(); consolePath != "NAPS2.Console.exe" {
+		appDir := filepath.Dir(consolePath)
+		baseDir := filepath.Dir(appDir)
+		candidates := []string{
+			filepath.Join(baseDir, "Data", "profiles.xml"),
+			filepath.Join(appDir, "Data", "profiles.xml"),
+		}
+		for _, candidate := range candidates {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	fallbacks := []string{
+		filepath.Join(cwd, "naps2", "Data", "profiles.xml"),
+		filepath.Join(cwd, "nasp32", "Data", "profiles.xml"),
+		filepath.Join(cwd, "naps2", "naps2-8.2.1-win-x64", "Data", "profiles.xml"),
+	}
+	for _, candidate := range fallbacks {
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return candidate
+		}
+	}
+
+	return ""
 }
 
 func commandLinePreview(exe string, args []string) string {
