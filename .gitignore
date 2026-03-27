@@ -1,4 +1,5 @@
+naps2/
 bin/
-output/
+data/
 *.exe
 *.log
