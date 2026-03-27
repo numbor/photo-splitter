@@ -115,12 +115,20 @@ func (a *DesktopApp) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-func (a *DesktopApp) DefaultOutputDir() string {
+func (a *DesktopApp) defaultDataDir() string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "output"
+		return "data"
 	}
-	return filepath.Join(cwd, "output")
+	return filepath.Join(cwd, "data")
+}
+
+func (a *DesktopApp) DefaultOutputDir() string {
+	return filepath.Join(a.defaultDataDir(), "output")
+}
+
+func (a *DesktopApp) defaultRawScansDir() string {
+	return filepath.Join(a.defaultDataDir(), "raw_scans")
 }
 
 func (a *DesktopApp) SelectOutputDir(current string) (string, error) {
@@ -219,11 +227,7 @@ func (a *DesktopApp) ScanWithNAPS2(req ScanRequest) (string, error) {
 		return "", fmt.Errorf("seleziona un profilo scanner")
 	}
 
-	outputDir := strings.TrimSpace(req.Output)
-	if outputDir == "" {
-		outputDir = a.DefaultOutputDir()
-	}
-	rawScansDir := filepath.Join(outputDir, "raw_scans")
+	rawScansDir := a.defaultRawScansDir()
 	if err := os.MkdirAll(rawScansDir, 0o755); err != nil {
 		return "", fmt.Errorf("creazione cartella raw_scans: %w", err)
 	}
@@ -250,11 +254,7 @@ func (a *DesktopApp) ScanWithNAPS2(req ScanRequest) (string, error) {
 }
 
 func (a *DesktopApp) PreviewNAPS2ScanCommand(req ScanRequest) string {
-	outputDir := strings.TrimSpace(req.Output)
-	if outputDir == "" {
-		outputDir = a.DefaultOutputDir()
-	}
-	rawScansDir := filepath.Join(outputDir, "raw_scans")
+	rawScansDir := a.defaultRawScansDir()
 	scanPath := filepath.Join(rawScansDir, "scan_<timestamp>.jpg")
 	naps2Path, args := a.buildNAPS2ScanCommand(scanPath, req.Profile)
 	return commandLinePreview(naps2Path, args)

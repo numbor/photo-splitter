@@ -186,6 +186,35 @@
       margin-top: var(--space-3);
     }
 
+    .scan-status {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      color: #0b5e58;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .scan-status.visible {
+      display: inline-flex;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid #b7d8d4;
+      border-top-color: #0f766e;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     button {
       border: 1px solid #c3cfdd;
       border-radius: 9px;
@@ -428,6 +457,10 @@
           <button class="secondary" id="btnProcess">Elabora file selezionato</button>
           <button id="btnOpenOutput">Apri cartella output</button>
         </div>
+        <div class="scan-status" id="scanStatus" aria-hidden="true">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Scansione in corso...</span>
+        </div>
       </section>
     </div>
 
@@ -457,15 +490,84 @@
     const scanProfile = document.getElementById("scanProfile");
     const logBox = document.getElementById("log");
     const previews = document.getElementById("previews");
+    const btnScanNaps2 = document.getElementById("btnScanNaps2");
+    const scanStatus = document.getElementById("scanStatus");
 
     const photoPathState = ["", "", "", ""];
     const photoPreviewState = ["", "", "", ""];
+    let scanInProgress = false;
+    const prefsStorageKey = "photo-splitter-go.preferences.v1";
 
     function appendLog(message) {
       const now = new Date();
       const ts = now.toTimeString().slice(0, 8);
       logBox.value += `[${ts}] ${message}\n`;
       logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function getUIPreferences() {
+      return {
+        outputPath: (outputPath.value || "").trim(),
+        jpgQuality: parseInt(jpgQuality.value, 10) || 90,
+        autoRotate: autoRotate.checked,
+        enhanceCrops: enhanceCrops.checked,
+        addBorder: addBorder.checked,
+        scanProfile: getSelectedProfile(),
+      };
+    }
+
+    function saveUIPreferences() {
+      try {
+        localStorage.setItem(prefsStorageKey, JSON.stringify(getUIPreferences()));
+      } catch (err) {
+        appendLog(`Impossibile salvare preferenze locali: ${err}`);
+      }
+    }
+
+    function loadUIPreferences() {
+      try {
+        const raw = localStorage.getItem(prefsStorageKey);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return {};
+        return parsed;
+      } catch {
+        return {};
+      }
+    }
+
+    function applyUIPreferences(prefs) {
+      if (prefs.outputPath) outputPath.value = String(prefs.outputPath);
+
+      if (Number.isFinite(Number(prefs.jpgQuality))) {
+        const quality = Math.max(1, Math.min(100, Number(prefs.jpgQuality)));
+        jpgQuality.value = String(quality);
+      }
+
+      if (typeof prefs.autoRotate === "boolean") autoRotate.checked = prefs.autoRotate;
+      if (typeof prefs.enhanceCrops === "boolean") enhanceCrops.checked = prefs.enhanceCrops;
+      if (typeof prefs.addBorder === "boolean") addBorder.checked = prefs.addBorder;
+    }
+
+    function applyPreferredScanProfile(preferredProfileName) {
+      const preferred = (preferredProfileName || "").trim();
+      if (!preferred || !scanProfile.options.length) return false;
+
+      for (let i = 0; i < scanProfile.options.length; i++) {
+        if ((scanProfile.options[i].value || "").trim() === preferred) {
+          scanProfile.selectedIndex = i;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function setScanInProgress(value) {
+      scanInProgress = value;
+      btnScanNaps2.disabled = value;
+      scanProfile.disabled = value;
+      scanStatus.classList.toggle("visible", value);
+      scanStatus.setAttribute("aria-hidden", value ? "false" : "true");
     }
 
     function renderPreviews() {
@@ -537,6 +639,7 @@
     async function loadScanProfiles() {
       scanProfile.innerHTML = "";
       try {
+        const prefs = loadUIPreferences();
         const profiles = await app().ListNAPS2Profiles();
         if (!profiles || !profiles.length) {
           throw new Error("nessun profilo disponibile");
@@ -558,7 +661,12 @@
           scanProfile.selectedIndex = 0;
         }
 
+        if (applyPreferredScanProfile(prefs.scanProfile)) {
+          appendLog(`Profilo scanner ripristinato: ${getSelectedProfile()}`);
+        }
+
         appendLog(`Profili NAPS2 caricati: ${scanProfile.options.length}`);
+        saveUIPreferences();
       } catch (err) {
         const fallback = document.createElement("option");
         fallback.value = "";
@@ -585,6 +693,8 @@
 
     async function loadDefaults() {
       outputPath.value = await app().DefaultOutputDir();
+      const prefs = loadUIPreferences();
+      applyUIPreferences(prefs);
       renderPreviews();
       appendLog("GUI Wails pronta.");
       try {
@@ -597,12 +707,16 @@
         appendLog(`Bootstrap NAPS2 fallito: ${err}`);
       }
       await loadScanProfiles();
+      appendLog("Preferenze locali ripristinate.");
     }
 
     document.getElementById("btnPickOutput").addEventListener("click", async () => {
       try {
         const selected = await app().SelectOutputDir(outputPath.value || "");
-        if (selected) outputPath.value = selected;
+        if (selected) {
+          outputPath.value = selected;
+          saveUIPreferences();
+        }
       } catch (err) {
         appendLog(`Errore selezione cartella output: ${err}`);
       }
@@ -639,7 +753,8 @@
       }
     });
 
-    document.getElementById("btnScanNaps2").addEventListener("click", async () => {
+    btnScanNaps2.addEventListener("click", async () => {
+      if (scanInProgress) return;
       try {
         const profile = getSelectedProfile();
         if (!profile) {
@@ -648,16 +763,22 @@
         }
         appendLog(`Avvio scansione NAPS2 con profilo: ${profile}`);
 
-        const scanPreview = await app().PreviewNAPS2ScanCommand({
-          output: outputPath.value,
-          profile,
-        });
-        appendLog(`Eseguo NAPS2: ${scanPreview}`);
+        let scannedPath = "";
+        setScanInProgress(true);
+        try {
+          const scanPreview = await app().PreviewNAPS2ScanCommand({
+            output: outputPath.value,
+            profile,
+          });
+          appendLog(`Eseguo NAPS2: ${scanPreview}`);
 
-        const scannedPath = await app().ScanWithNAPS2({
-          output: outputPath.value,
-          profile,
-        });
+          scannedPath = await app().ScanWithNAPS2({
+            output: outputPath.value,
+            profile,
+          });
+        } finally {
+          setScanInProgress(false);
+        }
 
         inputPath.value = scannedPath;
         appendLog(`Scansione completata: ${scannedPath}`);
@@ -681,6 +802,13 @@
     document.getElementById("btnReloadProfiles").addEventListener("click", async () => {
       await loadScanProfiles();
     });
+
+    outputPath.addEventListener("change", saveUIPreferences);
+    jpgQuality.addEventListener("change", saveUIPreferences);
+    autoRotate.addEventListener("change", saveUIPreferences);
+    enhanceCrops.addEventListener("change", saveUIPreferences);
+    addBorder.addEventListener("change", saveUIPreferences);
+    scanProfile.addEventListener("change", saveUIPreferences);
 
     document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {
       try {

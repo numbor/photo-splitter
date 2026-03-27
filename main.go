@@ -48,7 +48,7 @@ func runProcessCmd(args []string) error {
 	}
 	if *output == "" {
 		cwd, _ := os.Getwd()
-		*output = filepath.Join(cwd, "output")
+		*output = filepath.Join(cwd, "data", "output")
 	}
 
 	ts := time.Now().Format("20060102_150405")

@@ -52,13 +52,13 @@ Nella finestra puoi usare questi flussi:
 2. **Scansiona con NAPS2**
    - usa `NAPS2.Console.exe` con il profilo corrente configurato nella GUI NAPS2.
    - non imposta DPI, driver o device da riga comando.
-   - la scansione viene salvata in `output/raw_scans` e caricata automaticamente nel campo input.
+   - la scansione viene salvata in `data/raw_scans` e caricata automaticamente nel campo input.
 3. **Apri cartella output**
    - apre direttamente la cartella risultati in Esplora File.
 
 ## Output
 
-Nella cartella output viene creato un sottofolder timestamp con:
+Nella cartella `data/output` viene creato un sottofolder timestamp con:
 - `input_bordered.png`
 - `photo_1.jpg`
 - `photo_2.jpg`
@@ -66,7 +66,7 @@ Nella cartella output viene creato un sottofolder timestamp con:
 - `photo_4.jpg`
 
 Le scansioni NAPS2 vengono salvate in:
-- `output/raw_scans/scan_YYYYMMDD_HHMMSS.jpg`
+- `data/raw_scans/scan_YYYYMMDD_HHMMSS.jpg`
 
 ## Note tecniche
 
@@ -80,5 +80,5 @@ Le scansioni NAPS2 vengono salvate in:
 
 ## CLI tecnica (usata internamente dalla GUI)
 
- `photo-splitter.exe process --input "D:\\path\\scan.tiff" --output "D:\\scan\\project\\photo-splitter-go\\output" --jpg-quality 100 --auto-rotate-crops=false --add-border=false --enhance-crops=true`
- `photo-splitter.exe rotate --input "D:\\scan\\project\\photo-splitter-go\\output\\20260326_123000\\photo_1.jpg" --angle 90 --jpg-quality 100`
+ `photo-splitter.exe process --input "D:\\path\\scan.tiff" --output "D:\\scan\\project\\photo-splitter-go\\data\\output" --jpg-quality 100 --auto-rotate-crops=false --add-border=false --enhance-crops=true`
+ `photo-splitter.exe rotate --input "D:\\scan\\project\\photo-splitter-go\\data\\output\\20260326_123000\\photo_1.jpg" --angle 90 --jpg-quality 100`
