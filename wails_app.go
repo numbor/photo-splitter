@@ -675,6 +675,38 @@ func (a *DesktopApp) OpenOutputFolder(path string) error {
 	}
 }
 
+func (a *DesktopApp) OpenImageWithSystemViewer(path string) error {
+	imagePath := strings.TrimSpace(path)
+	if imagePath == "" {
+		return fmt.Errorf("nessuna immagine da aprire")
+	}
+
+	info, err := os.Stat(imagePath)
+	if err != nil {
+		return fmt.Errorf("immagine non trovata: %w", err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("il percorso indicato e una cartella, non un file")
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", imagePath)
+		hideExternalConsoleWindow(cmd)
+	case "darwin":
+		cmd = exec.Command("open", imagePath)
+	default:
+		cmd = exec.Command("xdg-open", imagePath)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("apertura visualizzatore immagine fallita: %w", err)
+	}
+
+	return nil
+}
+
 func boolToOnOff(value bool) string {
 	if value {
 		return "ON"
