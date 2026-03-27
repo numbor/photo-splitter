@@ -208,6 +208,7 @@ func (a *DesktopApp) ScanPhotoTWAIN(req ScanRequest) (string, error) {
 	naps2Path, args := a.buildTWAINScanCommand(req, scanPath)
 
 	cmd := exec.Command(naps2Path, args...)
+	hideExternalConsoleWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(output))
@@ -253,6 +254,7 @@ func (a *DesktopApp) ListTWAINDevices() (DeviceListResult, error) {
 
 	naps2Path := a.resolveNAPS2ConsolePath()
 	cmd := exec.Command(naps2Path, "--listdevices", "--driver", "twain")
+	hideExternalConsoleWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	raw := strings.TrimSpace(string(output))
 	if err != nil {
