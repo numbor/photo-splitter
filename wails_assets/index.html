@@ -187,6 +187,7 @@
     <div class="actions">
       <button class="primary" id="btnScanTwain">Scansiona via TWAIN</button>
       <button id="btnLoadTwainDevices">Carica dispositivi TWAIN</button>
+      <button id="btnOpenNapsGui">Apri GUI NAPS2</button>
       <button class="secondary" id="btnProcess">Elabora file selezionato</button>
       <button id="btnOpenOutput">Apri cartella output</button>
     </div>
@@ -416,6 +417,17 @@
       } catch (err) {
         appendLog(`Errore elenco dispositivi TWAIN: ${err}`);
         alert("Impossibile leggere i dispositivi TWAIN. Controlla il log.");
+      }
+    });
+
+    document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {
+      try {
+        appendLog("Avvio interfaccia GUI NAPS2...");
+        const guiPath = await app().LaunchNAPS2GUI();
+        appendLog(`GUI NAPS2 avviata: ${guiPath}`);
+      } catch (err) {
+        appendLog(`Errore avvio GUI NAPS2: ${err}`);
+        alert("Impossibile avviare la GUI di NAPS2. Controlla il log.");
       }
     });
 

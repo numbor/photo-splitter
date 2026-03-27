@@ -326,6 +326,28 @@ func (a *DesktopApp) ListTWAINDevices() (DeviceListResult, error) {
 	return DeviceListResult{Devices: devices, Raw: raw}, nil
 }
 
+func (a *DesktopApp) LaunchNAPS2GUI() (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("NAPS2 GUI supportata solo su Windows")
+	}
+
+	if _, err := a.EnsureNAPS2Portable(); err != nil {
+		return "", err
+	}
+
+	guiPath := a.resolveNAPS2GUIPath()
+	if guiPath == "" {
+		return "", fmt.Errorf("NAPS2 GUI non trovata")
+	}
+
+	cmd := exec.Command(guiPath)
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("avvio NAPS2 GUI fallito: %w", err)
+	}
+
+	return guiPath, nil
+}
+
 func (a *DesktopApp) resolveNAPS2ConsolePath() string {
 	if envPath := strings.TrimSpace(os.Getenv("NAPS2_CONSOLE_PATH")); envPath != "" {
 		if _, err := os.Stat(envPath); err == nil {
@@ -349,6 +371,42 @@ func (a *DesktopApp) resolveNAPS2ConsolePath() string {
 	}
 
 	return "NAPS2.Console.exe"
+}
+
+func (a *DesktopApp) resolveNAPS2GUIPath() string {
+	if envPath := strings.TrimSpace(os.Getenv("NAPS2_GUI_PATH")); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath
+		}
+	}
+
+	if consolePath := a.resolveNAPS2ConsolePath(); consolePath != "NAPS2.Console.exe" {
+		baseDir := filepath.Dir(consolePath)
+		candidates := []string{
+			filepath.Join(baseDir, "NAPS2.Portable.exe"),
+			filepath.Join(baseDir, "NAPS2.exe"),
+		}
+		for _, candidate := range candidates {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
+	cwd, err := os.Getwd()
+	if err == nil {
+		fallbacks := []string{
+			filepath.Join(cwd, "nasp32", "naps2-8.2.1-win-x64", "NAPS2.Portable.exe"),
+			filepath.Join(cwd, "nasp32", "naps2-8.2.1-win-x64", "App", "NAPS2.exe"),
+		}
+		for _, candidate := range fallbacks {
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				return candidate
+			}
+		}
+	}
+
+	return ""
 }
 
 func (a *DesktopApp) buildTWAINScanCommand(req ScanRequest, scanPath string) (string, []string) {
