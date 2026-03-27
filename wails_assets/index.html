@@ -5,188 +5,434 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Photo Splitter Go</title>
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
     :root {
       color-scheme: light;
-      font-family: "Segoe UI", sans-serif;
+      --bg-top: #f8f4ea;
+      --bg-bottom: #e6f2f3;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --line: #d6dee8;
+      --line-strong: #b8c5d4;
+      --brand: #0f766e;
+      --brand-strong: #0b5e58;
+      --action: #2c4a7f;
+      --action-strong: #20375f;
+      --chip: #f4f7fb;
+      --radius: 12px;
+      --container-max: 1320px;
+      --space-1: 6px;
+      --space-2: 8px;
+      --space-3: 10px;
+      --space-4: 12px;
+      --space-5: 14px;
+      font-family: "Manrope", "Segoe UI Variable", "Segoe UI", sans-serif;
     }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      background: #f5f7fa;
-      color: #1f2937;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 460px at -5% -18%, #f6d6a4 0%, transparent 60%),
+        radial-gradient(920px 420px at 106% -10%, #b9dfe1 0%, transparent 62%),
+        linear-gradient(170deg, var(--bg-top), var(--bg-bottom));
     }
+
     .container {
-      max-width: 1100px;
+      max-width: var(--container-max);
       margin: 0 auto;
-      padding: 18px;
+      padding: var(--space-5) var(--space-4) var(--space-5);
     }
-    .grid {
+
+    .header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: var(--space-3);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .header p {
+      margin: 1px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .top-layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+    }
+
+    .panel {
+      background: color-mix(in oklab, var(--card) 92%, #f3f6f9 8%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+      padding: var(--space-4);
+    }
+
+    .panel h2 {
+      margin: 0 0 var(--space-2);
+      font-size: 13px;
+      font-weight: 750;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #334155;
+    }
+
+    .field-grid {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 10px;
+      gap: var(--space-2);
       align-items: end;
     }
+
+    .field-grid + .field-grid {
+      margin-top: var(--space-2);
+    }
+
     label {
-      font-size: 13px;
-      color: #334155;
+      font-size: 11px;
+      color: #475569;
       margin-bottom: 4px;
       display: block;
+      font-weight: 650;
+      letter-spacing: 0.03em;
     }
+
     input[type="text"], input[type="number"], select {
       width: 100%;
-      box-sizing: border-box;
-      padding: 8px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
+      height: 36px;
+      padding: 6px 9px;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
       background: white;
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      transition: border-color 120ms ease, box-shadow 120ms ease;
     }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+    }
+
     .row {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 10px;
-      margin-top: 10px;
+      grid-template-columns: 92px minmax(210px, 1fr) 142px;
+      gap: var(--space-2);
+      align-items: end;
     }
+
     .checks {
-      display: flex;
-      gap: 16px;
-      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-2);
+      margin-top: var(--space-3);
       font-size: 14px;
     }
-    .actions {
+
+    .checks label {
+      margin: 0;
       display: flex;
-      gap: 10px;
-      margin-top: 12px;
-      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 6px 9px;
+      border-radius: 9px;
+      background: var(--chip);
+      border: 1px solid #dbe5ef;
+      font-size: 12px;
+      color: #334155;
+      font-weight: 600;
+      letter-spacing: normal;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    button {
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 9px 14px;
-      cursor: pointer;
-      background: #f8fafc;
+
+    .checks input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      flex: 0 0 auto;
     }
-    button.primary {
-      background: #2563eb;
-      border-color: #2563eb;
-      color: white;
-    }
-    button.secondary {
-      background: #10b981;
-      border-color: #10b981;
-      color: white;
-    }
-    .content {
-      margin-top: 14px;
+
+    .actions {
       display: grid;
-      grid-template-columns: minmax(320px, 420px) 1fr;
-      gap: 16px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-2);
+      margin-top: var(--space-3);
     }
+
+    button {
+      border: 1px solid #c3cfdd;
+      border-radius: 9px;
+      height: 36px;
+      padding: 0 10px;
+      cursor: pointer;
+      background: #f7fafc;
+      color: #1e293b;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button.primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: white;
+    }
+
+    button.primary:hover {
+      background: var(--brand-strong);
+      border-color: var(--brand-strong);
+    }
+
+    button.secondary {
+      background: var(--action);
+      border-color: var(--action);
+      color: white;
+    }
+
+    button.secondary:hover {
+      background: var(--action-strong);
+      border-color: var(--action-strong);
+    }
+
+    .content {
+      margin-top: var(--space-2);
+      display: grid;
+      grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.22fr);
+      gap: var(--space-3);
+    }
+
+    .content .panel {
+      min-height: 360px;
+    }
+
     textarea {
       width: 100%;
-      height: 450px;
+      height: 100%;
+      min-height: 370px;
       resize: none;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 10px;
-      box-sizing: border-box;
-      font-family: Consolas, monospace;
-      background: #fcfcfd;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      padding: 8px 9px;
+      font-family: "IBM Plex Mono", Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.35;
+      background: #fbfcff;
     }
+
     .previews {
       display: grid;
       grid-template-columns: repeat(2, minmax(220px, 1fr));
-      gap: 12px;
+      gap: var(--space-2);
     }
+
     .photo-card {
-      background: white;
-      border: 1px solid #dbe1e8;
-      border-radius: 12px;
-      padding: 10px;
+      background: #fbfdff;
+      border: 1px solid #d8e1ed;
+      border-radius: 10px;
+      padding: 8px;
     }
+
     .photo-card h4 {
-      margin: 0 0 8px;
-      font-size: 14px;
+      margin: 0 0 6px;
+      font-size: 12px;
+      font-weight: 700;
       color: #475569;
     }
+
     .preview {
       width: 100%;
-      height: 150px;
-      border: 1px solid #dbe1e8;
-      border-radius: 8px;
+      height: 128px;
+      border: 1px solid #d7e0ec;
+      border-radius: 7px;
       background: white;
       object-fit: contain;
     }
+
     .preview-empty {
       width: 100%;
-      height: 150px;
-      border: 1px solid #dbe1e8;
-      border-radius: 8px;
-      background: #f8fafc;
+      height: 128px;
+      border: 1px solid #d7e0ec;
+      border-radius: 7px;
+      background: #f4f8fc;
       color: #94a3b8;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 12px;
     }
+
     .photo-card button {
-      margin-top: 8px;
-      width: 120px;
+      margin-top: 6px;
+      width: 100%;
+    }
+
+    @media (max-width: 1060px) {
+      .top-layout,
+      .content {
+        grid-template-columns: 1fr;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .checks {
+        grid-template-columns: 1fr;
+      }
+
+      .previews {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 10px;
+      }
+
+      .header h1 {
+        font-size: 19px;
+      }
+
+      .header p {
+        font-size: 11px;
+      }
+
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field-grid button {
+        width: 100%;
+      }
+
+      .actions {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="grid">
+    <header class="header">
       <div>
-        <label>Cartella output</label>
-        <input id="outputPath" type="text" />
+        <h1>Photo Splitter</h1>
+        <p>Scansione NAPS2, crop automatico e rotazione rapida in un unico flusso.</p>
       </div>
-      <button id="btnPickOutput">Scegli...</button>
-    </div>
+    </header>
 
-    <div class="grid" style="margin-top:10px;">
-      <div>
-        <label>Percorso immagine da elaborare</label>
-        <input id="inputPath" type="text" />
-      </div>
-      <button id="btnPickInput">Apri file...</button>
-    </div>
+    <div class="top-layout">
+      <section class="panel">
+        <h2>Percorsi</h2>
 
-    <div class="row">
-      <div>
-        <label>JPG Quality</label>
-        <input id="jpgQuality" type="number" min="1" max="100" value="90" />
-      </div>
-      <div style="grid-column: span 2;">
-        <label>Profilo scanner NAPS2</label>
-        <select id="scanProfile"></select>
-      </div>
-      <div>
-        <button id="btnReloadProfiles" style="width:100%;">Ricarica profili</button>
-      </div>
-    </div>
+        <div class="field-grid">
+          <div>
+            <label>Cartella output</label>
+            <input id="outputPath" type="text" />
+          </div>
+          <button id="btnPickOutput">Scegli...</button>
+        </div>
 
-    <div class="checks">
-      <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
-      <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
-      <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco all'immagine</label>
-    </div>
+        <div class="field-grid">
+          <div>
+            <label>Percorso immagine da elaborare</label>
+            <input id="inputPath" type="text" />
+          </div>
+          <button id="btnPickInput">Apri file...</button>
+        </div>
+      </section>
 
-    <div class="actions">
-      <button class="primary" id="btnScanNaps2">Scansiona con NAPS2</button>
-      <button id="btnOpenNapsGui">Apri GUI NAPS2</button>
-      <button class="secondary" id="btnProcess">Elabora file selezionato</button>
-      <button id="btnOpenOutput">Apri cartella output</button>
+      <section class="panel">
+        <h2>Impostazioni Scanner</h2>
+
+        <div class="row">
+          <div>
+            <label>JPG Quality</label>
+            <input id="jpgQuality" type="number" min="1" max="100" value="90" />
+          </div>
+          <div>
+            <label>Profilo scanner NAPS2</label>
+            <select id="scanProfile"></select>
+          </div>
+          <div>
+            <button id="btnReloadProfiles" style="width:100%;">Ricarica profili</button>
+          </div>
+        </div>
+
+        <div class="checks">
+          <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
+          <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
+          <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco all'immagine</label>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="btnScanNaps2">Scansiona con NAPS2</button>
+          <button id="btnOpenNapsGui">Apri GUI NAPS2</button>
+          <button class="secondary" id="btnProcess">Elabora file selezionato</button>
+          <button id="btnOpenOutput">Apri cartella output</button>
+        </div>
+      </section>
     </div>
 
     <div class="content">
-      <div>
-        <label>Log</label>
+      <section class="panel">
+        <h2>Log Operazioni</h2>
         <textarea id="log" readonly></textarea>
-      </div>
-      <div>
-        <label>Anteprime foto croppate</label>
+      </section>
+
+      <section class="panel">
+        <h2>Anteprime Foto Croppate</h2>
         <div class="previews" id="previews"></div>
-      </div>
+      </section>
     </div>
   </div>
 
