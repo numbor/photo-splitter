@@ -366,7 +366,7 @@ func autoLevel(src *image.RGBA) *image.RGBA {
 		}
 	}
 
-	// Use 1st/99th percentile to ignore scanner noise outliers instead of
+	// Use 1st/99th percentile to ignore capture noise outliers instead of
 	// absolute min/max (a single dark pixel would otherwise prevent any stretch).
 	total := b.Dx() * b.Dy()
 	clip := max(1, total/100)

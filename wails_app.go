@@ -19,7 +19,6 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"photo-splitter-go/internal/imageproc"
-	"photo-splitter-go/internal/scan"
 )
 
 //go:embed wails_assets/*
@@ -38,17 +37,6 @@ type ProcessFileRequest struct {
 	EnhanceCrops    bool   `json:"enhanceCrops"`
 }
 
-type ScanAndProcessRequest struct {
-	Output          string `json:"output"`
-	ScanFormat      string `json:"scanFormat"`
-	DPI             int    `json:"dpi"`
-	Brightness      int    `json:"brightness"`
-	Contrast        int    `json:"contrast"`
-	JPGQuality      int    `json:"jpgQuality"`
-	AutoRotateCrops bool   `json:"autoRotateCrops"`
-	EnhanceCrops    bool   `json:"enhanceCrops"`
-}
-
 type RotateRequest struct {
 	Input      string `json:"input"`
 	Angle      int    `json:"angle"`
@@ -56,7 +44,6 @@ type RotateRequest struct {
 }
 
 type OperationResult struct {
-	ScanPath     string   `json:"scanPath,omitempty"`
 	OutputDir    string   `json:"outputDir"`
 	BorderedPath string   `json:"borderedPath,omitempty"`
 	Photos       []string `json:"photos"`
@@ -109,7 +96,7 @@ func (a *DesktopApp) SelectOutputDir(current string) (string, error) {
 	})
 }
 
-func (a *DesktopApp) SelectScanFile(current string) (string, error) {
+func (a *DesktopApp) SelectInputFile(current string) (string, error) {
 	defaultDir := current
 	if strings.TrimSpace(defaultDir) == "" {
 		cwd, err := os.Getwd()
@@ -119,89 +106,13 @@ func (a *DesktopApp) SelectScanFile(current string) (string, error) {
 	}
 
 	return wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title:            "Seleziona immagine scannerizzata",
+		Title:            "Seleziona immagine da elaborare",
 		DefaultDirectory: defaultDir,
 		Filters: []wailsruntime.FileFilter{
 			{DisplayName: "Immagini", Pattern: "*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff"},
 			{DisplayName: "Tutti i file", Pattern: "*.*"},
 		},
 	})
-}
-
-func (a *DesktopApp) ScanAndProcess(req ScanAndProcessRequest) (OperationResult, error) {
-	outputDir := strings.TrimSpace(req.Output)
-	if outputDir == "" {
-		outputDir = a.DefaultOutputDir()
-	}
-
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return OperationResult{}, fmt.Errorf("creazione cartella output: %w", err)
-	}
-
-	ts := time.Now().Format("20060102_150405")
-	scanDir := filepath.Join(outputDir, "raw_scans")
-	if err := os.MkdirAll(scanDir, 0o755); err != nil {
-		return OperationResult{}, fmt.Errorf("creazione cartella raw_scans: %w", err)
-	}
-
-	format := strings.ToLower(strings.TrimSpace(req.ScanFormat))
-	if format == "" {
-		format = "jpeg"
-	}
-	if format != "jpeg" && format != "tiff" {
-		return OperationResult{}, fmt.Errorf("formato scansione non valido: %s", req.ScanFormat)
-	}
-
-	ext := ".jpg"
-	if format == "tiff" {
-		ext = ".tiff"
-	}
-	scanPath := filepath.Join(scanDir, "scan_"+ts+ext)
-
-	scanOpts := scan.Options{
-		DPI:        req.DPI,
-		Brightness: req.Brightness,
-		Contrast:   req.Contrast,
-	}
-	if format == "tiff" {
-		if err := scan.AcquireScanTIFFWithOptions(scanPath, scanOpts); err != nil {
-			return OperationResult{}, err
-		}
-	} else {
-		if err := scan.AcquireScanJPEGWithOptions(scanPath, scanOpts); err != nil {
-			return OperationResult{}, err
-		}
-	}
-
-	targetDir := filepath.Join(outputDir, ts)
-	procResult, err := imageproc.ProcessTo4PhotosWithOptions(scanPath, targetDir, imageproc.Options{
-		JPEGQuality:     req.JPGQuality,
-		AutoRotateCrops: req.AutoRotateCrops,
-		SkipWhiteBorder: false,
-		SkipEnhancement: !req.EnhanceCrops,
-		DPI:             req.DPI,
-	})
-	if err != nil {
-		return OperationResult{}, err
-	}
-
-	logs := []string{
-		"Scansione completata",
-		"Formato scansione: " + format,
-		fmt.Sprintf("Qualità scanner: DPI=%d Brightness=%d Contrast=%d", req.DPI, req.Brightness, req.Contrast),
-		fmt.Sprintf("Qualità JPG output: %d", req.JPGQuality),
-		"Auto rotate crops: " + boolToOnOff(req.AutoRotateCrops),
-		"Enhance crops: " + boolToOnOff(req.EnhanceCrops),
-		"Add border scansione: ON",
-	}
-
-	return OperationResult{
-		ScanPath:     scanPath,
-		OutputDir:    targetDir,
-		BorderedPath: procResult.BorderedImage,
-		Photos:       procResult.Crops,
-		Logs:         logs,
-	}, nil
 }
 
 func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error) {

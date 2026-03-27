@@ -145,46 +145,26 @@
 
     <div class="grid" style="margin-top:10px;">
       <div>
-        <label>Percorso immagine scannerizzata (opzionale)</label>
-        <input id="scanPath" type="text" />
+        <label>Percorso immagine da elaborare</label>
+        <input id="inputPath" type="text" />
       </div>
-      <button id="btnPickScan">Apri file...</button>
+      <button id="btnPickInput">Apri file...</button>
     </div>
 
     <div class="row">
       <div>
-        <label>DPI</label>
-        <input id="dpi" type="number" min="75" max="1200" value="600" />
-      </div>
-      <div>
-        <label>Brightness</label>
-        <input id="brightness" type="number" min="-1000" max="1000" value="0" />
-      </div>
-      <div>
-        <label>Contrast</label>
-        <input id="contrast" type="number" min="-1000" max="1000" value="0" />
-      </div>
-      <div>
         <label>JPG Quality</label>
         <input id="jpgQuality" type="number" min="1" max="100" value="100" />
-      </div>
-      <div>
-        <label>Formato scansione</label>
-        <select id="scanFormat">
-          <option value="jpeg">JPEG</option>
-          <option value="tiff" selected>TIFF</option>
-        </select>
       </div>
     </div>
 
     <div class="checks">
       <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
       <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
-      <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco alla scansione</label>
+      <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco all'immagine</label>
     </div>
 
     <div class="actions">
-      <button class="primary" id="btnScanSplit">Scansiona e separa 4 foto</button>
       <button class="secondary" id="btnProcess">Elabora file selezionato</button>
       <button id="btnOpenOutput">Apri cartella output</button>
     </div>
@@ -206,12 +186,8 @@
   <script>
     const app = () => window.go.main.DesktopApp;
     const outputPath = document.getElementById("outputPath");
-    const scanPath = document.getElementById("scanPath");
-    const dpi = document.getElementById("dpi");
-    const brightness = document.getElementById("brightness");
-    const contrast = document.getElementById("contrast");
+    const inputPath = document.getElementById("inputPath");
     const jpgQuality = document.getElementById("jpgQuality");
-    const scanFormat = document.getElementById("scanFormat");
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
@@ -288,7 +264,6 @@
       }
       renderPreviews();
       (result.logs || []).forEach(appendLog);
-      if (result.scanPath) appendLog(`SCAN=${result.scanPath}`);
       if (result.outputDir) appendLog(`OUTPUT_DIR=${result.outputDir}`);
       if (result.borderedPath) appendLog(`BORDERED=${result.borderedPath}`);
       photos.forEach((path) => appendLog(`PHOTO=${path}`));
@@ -310,44 +285,24 @@
       }
     });
 
-    document.getElementById("btnPickScan").addEventListener("click", async () => {
+    document.getElementById("btnPickInput").addEventListener("click", async () => {
       try {
-        const selected = await app().SelectScanFile(scanPath.value || "");
-        if (selected) scanPath.value = selected;
+        const selected = await app().SelectInputFile(inputPath.value || "");
+        if (selected) inputPath.value = selected;
       } catch (err) {
         appendLog(`Errore selezione file: ${err}`);
       }
     });
 
-    document.getElementById("btnScanSplit").addEventListener("click", async () => {
-      try {
-        appendLog("Avvio scansione...");
-        const result = await app().ScanAndProcess({
-          output: outputPath.value,
-          scanFormat: scanFormat.value,
-          dpi: parseInt(dpi.value, 10) || 300,
-          brightness: parseInt(brightness.value, 10) || 0,
-          contrast: parseInt(contrast.value, 10) || 0,
-          jpgQuality: parseInt(jpgQuality.value, 10) || 95,
-          autoRotateCrops: autoRotate.checked,
-          enhanceCrops: enhanceCrops.checked,
-        });
-        await updateResult(result);
-      } catch (err) {
-        appendLog(`Errore scansione/elaborazione: ${err}`);
-        alert("Operazione fallita. Controlla il log.");
-      }
-    });
-
     document.getElementById("btnProcess").addEventListener("click", async () => {
-      if (!scanPath.value.trim()) {
+      if (!inputPath.value.trim()) {
         alert("Seleziona un file immagine.");
         return;
       }
       try {
         appendLog("Avvio elaborazione file...");
         const result = await app().ProcessFile({
-          input: scanPath.value,
+          input: inputPath.value,
           output: outputPath.value,
           jpgQuality: parseInt(jpgQuality.value, 10) || 95,
           autoRotateCrops: autoRotate.checked,
