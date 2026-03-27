@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,6 +42,17 @@ type RotateRequest struct {
 	Input      string `json:"input"`
 	Angle      int    `json:"angle"`
 	JPGQuality int    `json:"jpgQuality"`
+}
+
+type ScanRequest struct {
+	Output string `json:"output"`
+	DPI    int    `json:"dpi"`
+	Device string `json:"device"`
+}
+
+type DeviceListResult struct {
+	Devices []string `json:"devices"`
+	Raw     string   `json:"raw"`
 }
 
 type OperationResult struct {
@@ -171,6 +183,161 @@ func (a *DesktopApp) RotatePhoto(req RotateRequest) (string, error) {
 	}
 
 	return inputPath, nil
+}
+
+func (a *DesktopApp) ScanPhotoTWAIN(req ScanRequest) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("la scansione TWAIN e supportata solo su Windows")
+	}
+
+	outputDir := strings.TrimSpace(req.Output)
+	if outputDir == "" {
+		outputDir = a.DefaultOutputDir()
+	}
+	rawScansDir := filepath.Join(outputDir, "raw_scans")
+	if err := os.MkdirAll(rawScansDir, 0o755); err != nil {
+		return "", fmt.Errorf("creazione cartella raw_scans: %w", err)
+	}
+
+	dpi := req.DPI
+	if dpi <= 0 {
+		dpi = 300
+	}
+
+	scanPath := filepath.Join(rawScansDir, "scan_"+time.Now().Format("20060102_150405")+".jpg")
+	naps2Path, args := a.buildTWAINScanCommand(req, scanPath)
+
+	cmd := exec.Command(naps2Path, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(output))
+		if msg == "" {
+			msg = err.Error()
+		}
+		return "", fmt.Errorf("acquisizione TWAIN fallita: %s", msg)
+	}
+
+	if _, err := os.Stat(scanPath); err != nil {
+		return "", fmt.Errorf("scansione completata ma file non trovato: %s", scanPath)
+	}
+
+	return scanPath, nil
+}
+
+func (a *DesktopApp) PreviewTWAINScanCommand(req ScanRequest) string {
+	outputDir := strings.TrimSpace(req.Output)
+	if outputDir == "" {
+		outputDir = a.DefaultOutputDir()
+	}
+	dpi := req.DPI
+	if dpi <= 0 {
+		dpi = 300
+	}
+
+	rawScansDir := filepath.Join(outputDir, "raw_scans")
+	scanPath := filepath.Join(rawScansDir, "scan_<timestamp>.jpg")
+	naps2Path, args := a.buildTWAINScanCommand(ScanRequest{DPI: dpi, Device: req.Device}, scanPath)
+	return commandLinePreview(naps2Path, args)
+}
+
+func (a *DesktopApp) PreviewListTWAINDevicesCommand() string {
+	naps2Path := a.resolveNAPS2ConsolePath()
+	args := []string{"--listdevices", "--driver", "twain"}
+	return commandLinePreview(naps2Path, args)
+}
+
+func (a *DesktopApp) ListTWAINDevices() (DeviceListResult, error) {
+	if runtime.GOOS != "windows" {
+		return DeviceListResult{}, fmt.Errorf("la scansione TWAIN e supportata solo su Windows")
+	}
+
+	naps2Path := a.resolveNAPS2ConsolePath()
+	cmd := exec.Command(naps2Path, "--listdevices", "--driver", "twain")
+	output, err := cmd.CombinedOutput()
+	raw := strings.TrimSpace(string(output))
+	if err != nil {
+		msg := raw
+		if msg == "" {
+			msg = err.Error()
+		}
+		return DeviceListResult{}, fmt.Errorf("elenco dispositivi TWAIN fallito: %s", msg)
+	}
+
+	lines := strings.Split(raw, "\n")
+	devices := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		devices = append(devices, trimmed)
+	}
+
+	return DeviceListResult{Devices: devices, Raw: raw}, nil
+}
+
+func (a *DesktopApp) resolveNAPS2ConsolePath() string {
+	if envPath := strings.TrimSpace(os.Getenv("NAPS2_CONSOLE_PATH")); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath
+		}
+	}
+
+	cwd, err := os.Getwd()
+	if err == nil {
+		candidates := []string{
+			filepath.Join(cwd, "nasp32", "naps2-8.2.1-win-x64", "App", "NAPS2.Console.exe"),
+			filepath.Join(cwd, "..", "photo-splitter-go", "nasp32", "naps2-8.2.1-win-x64", "App", "NAPS2.Console.exe"),
+			filepath.Join(cwd, "NAPS2.Console.exe"),
+		}
+		for _, candidate := range candidates {
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				return candidate
+			}
+		}
+	}
+
+	return "NAPS2.Console.exe"
+}
+
+func (a *DesktopApp) buildTWAINScanCommand(req ScanRequest, scanPath string) (string, []string) {
+	naps2Path := a.resolveNAPS2ConsolePath()
+	dpi := req.DPI
+	if dpi <= 0 {
+		dpi = 300
+	}
+
+	args := []string{
+		"-o", scanPath,
+		"-f",
+		"--driver", "twain",
+		"--dpi", strconv.Itoa(dpi),
+	}
+	device := strings.TrimSpace(req.Device)
+	if device != "" {
+		args = append(args, "--noprofile", "--device", device)
+	}
+	return naps2Path, args
+}
+
+func commandLinePreview(exe string, args []string) string {
+	parts := make([]string, 0, len(args)+1)
+	parts = append(parts, quoteCommandArg(exe))
+	for _, a := range args {
+		parts = append(parts, quoteCommandArg(a))
+	}
+	return strings.Join(parts, " ")
+}
+
+func quoteCommandArg(value string) string {
+	if value == "" {
+		return "\"\""
+	}
+	if !strings.ContainsAny(value, " \t\n\"") {
+		return value
+	}
+	escaped := strings.ReplaceAll(value, "\"", "\\\"")
+	return "\"" + escaped + "\""
 }
 
 func (a *DesktopApp) GetPhotoPreviewDataURL(path string) (string, error) {

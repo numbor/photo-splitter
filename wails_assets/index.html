@@ -154,7 +154,27 @@
     <div class="row">
       <div>
         <label>JPG Quality</label>
-        <input id="jpgQuality" type="number" min="1" max="100" value="100" />
+        <input id="jpgQuality" type="number" min="1" max="100" value="90" />
+      </div>
+      <div>
+        <label>DPI scansione TWAIN</label>
+        <select id="scanDpi">
+          <option value="150">150</option>
+          <option value="200">200</option>
+          <option value="300" selected>300</option>
+          <option value="400">400</option>
+          <option value="600">600</option>
+        </select>
+      </div>
+      <div>
+        <label>Dispositivo TWAIN (opzionale)</label>
+        <input id="scanDevice" type="text" placeholder="Es. Canon LiDE" />
+      </div>
+      <div>
+        <label>Dispositivi TWAIN rilevati</label>
+        <select id="scanDeviceList">
+          <option value="">(nessun dispositivo caricato)</option>
+        </select>
       </div>
     </div>
 
@@ -165,6 +185,8 @@
     </div>
 
     <div class="actions">
+      <button class="primary" id="btnScanTwain">Scansiona via TWAIN</button>
+      <button id="btnLoadTwainDevices">Carica dispositivi TWAIN</button>
       <button class="secondary" id="btnProcess">Elabora file selezionato</button>
       <button id="btnOpenOutput">Apri cartella output</button>
     </div>
@@ -188,6 +210,9 @@
     const outputPath = document.getElementById("outputPath");
     const inputPath = document.getElementById("inputPath");
     const jpgQuality = document.getElementById("jpgQuality");
+    const scanDpi = document.getElementById("scanDpi");
+    const scanDevice = document.getElementById("scanDevice");
+    const scanDeviceList = document.getElementById("scanDeviceList");
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
@@ -276,6 +301,27 @@
       appendLog("GUI Wails pronta.");
     }
 
+    async function loadTwainDevices() {
+      appendLog("Lettura dispositivi TWAIN in corso...");
+      const result = await app().ListTWAINDevices();
+      const devices = result.devices || [];
+
+      scanDeviceList.innerHTML = "";
+      const defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = devices.length ? "(seleziona dispositivo)" : "(nessun dispositivo trovato)";
+      scanDeviceList.appendChild(defaultOpt);
+
+      devices.forEach((deviceName) => {
+        const opt = document.createElement("option");
+        opt.value = deviceName;
+        opt.textContent = deviceName;
+        scanDeviceList.appendChild(opt);
+      });
+
+      appendLog(`Dispositivi TWAIN trovati: ${devices.length}`);
+    }
+
     document.getElementById("btnPickOutput").addEventListener("click", async () => {
       try {
         const selected = await app().SelectOutputDir(outputPath.value || "");
@@ -313,6 +359,60 @@
       } catch (err) {
         appendLog(`Errore elaborazione file: ${err}`);
         alert("Operazione fallita. Controlla il log.");
+      }
+    });
+
+    document.getElementById("btnScanTwain").addEventListener("click", async () => {
+      try {
+        const dpi = parseInt(scanDpi.value, 10) || 300;
+        appendLog(`Avvio scansione TWAIN a ${dpi} DPI...`);
+
+        const scanPreview = await app().PreviewTWAINScanCommand({
+          output: outputPath.value,
+          dpi,
+          device: scanDevice.value || "",
+        });
+        appendLog(`Eseguo NAPS2: ${scanPreview}`);
+
+        const scannedPath = await app().ScanPhotoTWAIN({
+          output: outputPath.value,
+          dpi,
+          device: scanDevice.value || "",
+        });
+
+        inputPath.value = scannedPath;
+        appendLog(`Scansione completata: ${scannedPath}`);
+
+        appendLog("Avvio elaborazione automatica dello scan...");
+        const result = await app().ProcessFile({
+          input: scannedPath,
+          output: outputPath.value,
+          jpgQuality: parseInt(jpgQuality.value, 10) || 95,
+          autoRotateCrops: autoRotate.checked,
+          enhanceCrops: enhanceCrops.checked,
+          addBorder: addBorder.checked,
+        });
+        await updateResult(result);
+      } catch (err) {
+        appendLog(`Errore scansione/elaborazione TWAIN: ${err}`);
+        alert("Scansione o elaborazione TWAIN fallita. Controlla il log.");
+      }
+    });
+
+    document.getElementById("btnLoadTwainDevices").addEventListener("click", async () => {
+      try {
+        const listPreview = await app().PreviewListTWAINDevicesCommand();
+        appendLog(`Eseguo NAPS2: ${listPreview}`);
+        await loadTwainDevices();
+      } catch (err) {
+        appendLog(`Errore elenco dispositivi TWAIN: ${err}`);
+        alert("Impossibile leggere i dispositivi TWAIN. Controlla il log.");
+      }
+    });
+
+    scanDeviceList.addEventListener("change", () => {
+      if (scanDeviceList.value) {
+        scanDevice.value = scanDeviceList.value;
       }
     });
 

@@ -2,6 +2,7 @@
 
 Applicativo in Go con interfaccia grafica desktop basata su Wails per:
 - caricare una singola immagine iniziale,
+- acquisire una scansione da scanner TWAIN tramite `NAPS2.Console.exe`,
 - aggiungere un leggero bordo bianco in modo nativo,
 - individuare 4 fotografie presenti nell'immagine,
 - fare crop e salvare 4 immagini separate.
@@ -10,6 +11,8 @@ Applicativo in Go con interfaccia grafica desktop basata su Wails per:
 
 - Go 1.22+
 - Microsoft Edge WebView2 Runtime
+- NAPS2 portable estratto in `nasp32/naps2-8.2.1-win-x64/App/NAPS2.Console.exe`
+   (in alternativa imposta `NAPS2_CONSOLE_PATH`)
 
 Nessuna dipendenza da gcc/MinGW.
 
@@ -43,7 +46,13 @@ Nella finestra puoi usare questi flussi:
    - puoi attivare/disattivare l'aggiunta di bordo bianco (`Aggiungi bordo bianco all'immagine`).
    - al termine mostra le anteprime delle 4 foto croppate.
    - ogni anteprima ha pulsante di rotazione (`Ruota 90°`).
-2. **Apri cartella output**
+2. **Scansiona via TWAIN**
+   - usa `NAPS2.Console.exe` con driver TWAIN.
+   - puoi scegliere i DPI (`DPI scansione TWAIN`).
+   - con `Carica dispositivi TWAIN` l'app richiama `--listdevices --driver twain` e mostra i device disponibili.
+   - puoi selezionare un dispositivo dalla lista, oppure inserirlo manualmente (match parziale del nome).
+   - la scansione viene salvata in `output/raw_scans` e caricata automaticamente nel campo input.
+3. **Apri cartella output**
    - apre direttamente la cartella risultati in Esplora File.
 
 ## Output
@@ -54,6 +63,9 @@ Nella cartella output viene creato un sottofolder timestamp con:
 - `photo_2.jpg`
 - `photo_3.jpg`
 - `photo_4.jpg`
+
+Le scansioni TWAIN vengono salvate in:
+- `output/raw_scans/scan_YYYYMMDD_HHMMSS.jpg`
 
 ## Note tecniche
 
