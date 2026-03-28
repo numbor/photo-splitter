@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main", "master", "github-actions" ]
+    tags:     [ "v*" ]
+  pull_request:
+    branches: [ "main", "master", "github-actions" ]
+
+jobs:
+  build-windows:
+    name: Build (Windows cross-compile)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install MinGW-w64 cross-compiler
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Download dependencies
+        run: go mod tidy
+
+      - name: Build
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CC: x86_64-w64-mingw32-gcc
+        run: go build -tags production -ldflags "-H windowsgui" -o photo-splitter.exe .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: photo-splitter-windows
+          path: photo-splitter.exe
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: photo-splitter-windows
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: photo-splitter.exe
+          generate_release_notes: true
