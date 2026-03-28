@@ -1,0 +1,102 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-windows:
+    name: Build (Windows cross-compile)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install MinGW-w64 cross-compiler
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Download dependencies
+        run: go mod tidy
+
+      - name: Build
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CC: x86_64-w64-mingw32-gcc
+        run: go build -tags production -ldflags "-H windowsgui" -o photo-splitter.exe .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: photo-splitter-windows
+          path: photo-splitter.exe
+          retention-days: 30
+
+  tag-and-release:
+    name: Create Tag and Release
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/github-actions'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: photo-splitter-windows
+          path: dist
+
+      - name: Compute and push next tag
+        id: tag
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          current_tag="$(git tag --points-at "$GITHUB_SHA" -l 'v*' | head -n1 || true)"
+          if [ -n "$current_tag" ]; then
+            echo "tag=$current_tag" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest="$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)"
+          if [ -z "$latest" ]; then
+            latest="v1.0.00"
+          fi
+
+          version="${latest#v}"
+          IFS='.' read -r major minor patch <<< "$version"
+
+          if [ -z "${major:-}" ]; then major=1; fi
+          if [ -z "${minor:-}" ]; then minor=0; fi
+          if [ -z "${patch:-}" ]; then patch=0; fi
+
+          next_patch=$(printf "%02d" "$((10#$patch + 1))")
+          next_tag="v${major}.${minor}.${next_patch}"
+
+          git tag "$next_tag" "$GITHUB_SHA"
+          git push origin "$next_tag"
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: dist/photo-splitter.exe
+          generate_release_notes: true

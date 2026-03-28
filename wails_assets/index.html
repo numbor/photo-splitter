@@ -48,7 +48,7 @@
     .container {
       max-width: var(--container-max);
       margin: 0 auto;
-      padding: var(--space-5) var(--space-4) var(--space-5);
+      padding: var(--space-3) var(--space-4) var(--space-4);
     }
 
     .header {
@@ -56,7 +56,7 @@
       align-items: end;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: var(--space-3);
+      margin-bottom: var(--space-2);
     }
 
     .header h1 {
@@ -77,7 +77,7 @@
       display: grid;
       grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
       gap: var(--space-3);
-      margin-bottom: var(--space-3);
+      margin-bottom: var(--space-2);
     }
 
     .panel {
@@ -85,7 +85,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-      padding: var(--space-4);
+      padding: 10px;
     }
 
     .panel h2 {
@@ -119,8 +119,8 @@
 
     input[type="text"], input[type="number"], select {
       width: 100%;
-      height: 36px;
-      padding: 6px 9px;
+      height: 34px;
+      padding: 5px 8px;
       border: 1px solid var(--line-strong);
       border-radius: 9px;
       background: white;
@@ -147,9 +147,9 @@
 
     .checks {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: var(--space-2);
-      margin-top: var(--space-3);
+      margin-top: var(--space-2);
       font-size: 14px;
     }
 
@@ -158,18 +158,21 @@
       display: flex;
       align-items: center;
       gap: 7px;
-      min-height: 36px;
-      padding: 6px 9px;
+      min-height: 32px;
+      padding: 5px 8px;
       border-radius: 9px;
       background: var(--chip);
       border: 1px solid #dbe5ef;
-      font-size: 12px;
+      font-size: 11px;
       color: #334155;
       font-weight: 600;
       letter-spacing: normal;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.3;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      align-items: flex-start;
     }
 
     .checks input[type="checkbox"] {
@@ -183,7 +186,7 @@
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: var(--space-2);
-      margin-top: var(--space-3);
+      margin-top: var(--space-2);
     }
 
     .scan-status {
@@ -218,7 +221,7 @@
     button {
       border: 1px solid #c3cfdd;
       border-radius: 9px;
-      height: 36px;
+      height: 34px;
       padding: 0 10px;
       cursor: pointer;
       background: #f7fafc;
@@ -271,18 +274,18 @@
     .content {
       margin-top: var(--space-2);
       display: grid;
-      grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.22fr);
+      grid-template-columns: minmax(420px, 1.1fr) minmax(440px, 0.9fr);
       gap: var(--space-3);
     }
 
     .content .panel {
-      min-height: 360px;
+      min-height: 300px;
     }
 
     textarea {
       width: 100%;
       height: 100%;
-      min-height: 370px;
+      min-height: 310px;
       resize: none;
       border: 1px solid var(--line-strong);
       border-radius: 9px;
@@ -315,7 +318,7 @@
 
     .preview {
       width: 100%;
-      height: 128px;
+      height: 112px;
       border: 1px solid #d7e0ec;
       border-radius: 7px;
       background: white;
@@ -332,7 +335,7 @@
 
     .preview-empty {
       width: 100%;
-      height: 128px;
+      height: 112px;
       border: 1px solid #d7e0ec;
       border-radius: 7px;
       background: #f4f8fc;
@@ -396,6 +399,26 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @media (max-height: 920px) {
+      .container {
+        padding-top: 8px;
+        padding-bottom: 10px;
+      }
+
+      .content .panel {
+        min-height: 270px;
+      }
+
+      textarea {
+        min-height: 280px;
+      }
+
+      .preview,
+      .preview-empty {
+        height: 96px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -449,6 +472,7 @@
           <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
           <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
           <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco all'immagine</label>
+          <label><input id="useSubfolders" type="checkbox" checked /> Salva i crop in una sottocartella timestamp (se disattivato usa file sequenziali nella cartella output)</label>
         </div>
 
         <div class="actions">
@@ -487,6 +511,7 @@
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
+    const useSubfolders = document.getElementById("useSubfolders");
     const scanProfile = document.getElementById("scanProfile");
     const logBox = document.getElementById("log");
     const previews = document.getElementById("previews");
@@ -497,6 +522,28 @@
     const photoPreviewState = ["", "", "", ""];
     let scanInProgress = false;
     const prefsStorageKey = "photo-splitter-go.preferences.v1";
+
+    function getFileName(path) {
+      const raw = (path || "").trim();
+      if (!raw) return "";
+      const normalized = raw.replace(/\\/g, "/");
+      const parts = normalized.split("/");
+      return parts[parts.length - 1] || "";
+    }
+
+    function getRelativePath(basePath, fullPath) {
+      const base = (basePath || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+      const full = (fullPath || "").trim().replace(/\\/g, "/");
+      if (!base || !full) return "";
+
+      const baseLower = base.toLowerCase();
+      const fullLower = full.toLowerCase();
+      if (fullLower === baseLower) return "";
+      if (fullLower.startsWith(baseLower + "/")) {
+        return full.slice(base.length + 1);
+      }
+      return "";
+    }
 
     function appendLog(message) {
       const now = new Date();
@@ -512,6 +559,7 @@
         autoRotate: autoRotate.checked,
         enhanceCrops: enhanceCrops.checked,
         addBorder: addBorder.checked,
+        useSubfolders: useSubfolders.checked,
         scanProfile: getSelectedProfile(),
       };
     }
@@ -547,6 +595,7 @@
       if (typeof prefs.autoRotate === "boolean") autoRotate.checked = prefs.autoRotate;
       if (typeof prefs.enhanceCrops === "boolean") enhanceCrops.checked = prefs.enhanceCrops;
       if (typeof prefs.addBorder === "boolean") addBorder.checked = prefs.addBorder;
+      if (typeof prefs.useSubfolders === "boolean") useSubfolders.checked = prefs.useSubfolders;
     }
 
     function applyPreferredScanProfile(preferredProfileName) {
@@ -572,12 +621,29 @@
 
     function renderPreviews() {
       previews.innerHTML = "";
+      const showRelativePath = useSubfolders.checked;
+      const outputBasePath = outputPath.value;
+
       for (let i = 0; i < 4; i++) {
         const card = document.createElement("div");
         card.className = "photo-card";
 
         const title = document.createElement("h4");
-        title.textContent = `Foto ${i + 1}`;
+        const croppedFileName = getFileName(photoPathState[i]);
+        title.textContent = croppedFileName || `Foto ${i + 1}`;
+
+        if (showRelativePath && photoPathState[i]) {
+          const relPath = getRelativePath(outputBasePath, photoPathState[i]);
+          if (relPath) {
+            const rel = document.createElement("small");
+            rel.textContent = relPath;
+            rel.style.display = "block";
+            rel.style.marginTop = "4px";
+            rel.style.color = "#67717d";
+            rel.style.fontWeight = "500";
+            title.appendChild(rel);
+          }
+        }
 
         let previewElement;
         if (photoPreviewState[i]) {
@@ -745,6 +811,7 @@
           autoRotateCrops: autoRotate.checked,
           enhanceCrops: enhanceCrops.checked,
           addBorder: addBorder.checked,
+          useSubfolders: useSubfolders.checked,
         });
         await updateResult(result);
       } catch (err) {
@@ -791,6 +858,7 @@
           autoRotateCrops: autoRotate.checked,
           enhanceCrops: enhanceCrops.checked,
           addBorder: addBorder.checked,
+          useSubfolders: useSubfolders.checked,
         });
         await updateResult(result);
       } catch (err) {
@@ -804,10 +872,14 @@
     });
 
     outputPath.addEventListener("change", saveUIPreferences);
+    outputPath.addEventListener("change", renderPreviews);
+    inputPath.addEventListener("change", renderPreviews);
     jpgQuality.addEventListener("change", saveUIPreferences);
     autoRotate.addEventListener("change", saveUIPreferences);
     enhanceCrops.addEventListener("change", saveUIPreferences);
     addBorder.addEventListener("change", saveUIPreferences);
+    useSubfolders.addEventListener("change", saveUIPreferences);
+    useSubfolders.addEventListener("change", renderPreviews);
     scanProfile.addEventListener("change", saveUIPreferences);
 
     document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {

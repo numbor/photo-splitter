@@ -47,6 +47,9 @@ Nella finestra puoi usare questi flussi:
    - puoi attivare/disattivare la rotazione automatica dei crop (`Ruota automaticamente i crop di 90° a destra`).
    - puoi attivare/disattivare il miglioramento automatico dei crop (`Migliora automaticamente i crop`).
    - puoi attivare/disattivare l'aggiunta di bordo bianco (`Aggiungi bordo bianco all'immagine`).
+   - puoi scegliere la modalità di salvataggio output (`Salva i crop in una sottocartella timestamp`).
+     - se attivo: comportamento classico con sottocartella timestamp.
+     - se disattivo: i crop vengono salvati direttamente nella cartella output con nome sequenziale progressivo.
    - al termine mostra le anteprime delle 4 foto croppate.
    - ogni anteprima ha pulsante di rotazione (`Ruota 90°`).
 2. **Scansiona con NAPS2**
@@ -58,12 +61,21 @@ Nella finestra puoi usare questi flussi:
 
 ## Output
 
-Nella cartella `data/output` viene creato un sottofolder timestamp con:
-- `input_bordered.png`
-- `photo_1.jpg`
-- `photo_2.jpg`
-- `photo_3.jpg`
-- `photo_4.jpg`
+Modalità predefinita (flag attivo):
+- nella cartella `data/output` viene creato un sottofolder timestamp con:
+   - `scan_bordered.png`
+   - `photo_1.jpg`
+   - `photo_2.jpg`
+   - `photo_3.jpg`
+   - `photo_4.jpg`
+
+Modalità senza sottocartelle (flag disattivo):
+- i crop vengono salvati direttamente in `data/output` con nome sequenziale, ad esempio:
+   - `photo_0001.jpg`
+   - `photo_0002.jpg`
+   - `photo_0003.jpg`
+   - `photo_0004.jpg`
+- alle elaborazioni successive la numerazione continua in modo progressivo.
 
 Le scansioni NAPS2 vengono salvate in:
 - `data/raw_scans/scan_YYYYMMDD_HHMMSS.jpg`
