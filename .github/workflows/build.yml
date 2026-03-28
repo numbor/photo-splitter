@@ -5,6 +5,12 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag da usare (es: v1.0.02). Lascia vuoto per auto-incremento"
+        required: false
+        type: string
 
 jobs:
   build-windows:
@@ -13,16 +19,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4 # Aggiornato alla v4 (stabile)
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Install MinGW-w64 cross-compiler
-        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
 
       - name: Download dependencies
         run: go mod tidy
@@ -33,10 +39,11 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: "1"
           CC: x86_64-w64-mingw32-gcc
-        run: go build -tags production -ldflags "-H windowsgui" -o photo-splitter.exe .
+        # Ho aggiunto -ldflags "-s -w" per rendere il file .exe più leggero
+        run: go build -tags production -ldflags "-s -w -H windowsgui" -o photo-splitter.exe .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: photo-splitter-windows
           path: photo-splitter.exe
@@ -46,35 +53,48 @@ jobs:
     name: Create Tag and Release
     needs: build-windows
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/github-actions'
+    if: github.event_name == 'workflow_dispatch'
 
     permissions:
       contents: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Download artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: photo-splitter-windows
           path: dist
 
       - name: Compute and push next tag
         id: tag
+        shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
+          git config user.name "[bot]"
+          git config user.email "[bot]@users.noreply.github.com"
+          
           git fetch --tags --force
 
-          current_tag="$(git tag --points-at "$GITHUB_SHA" -l 'v*' | head -n1 || true)"
-          if [ -n "$current_tag" ]; then
-            echo "tag=$current_tag" >> "$GITHUB_OUTPUT"
+          if [ -n "${INPUT_TAG:-}" ]; then
+            chosen_tag="$INPUT_TAG"
+            if git rev-parse "$chosen_tag" >/dev/null 2>&1; then
+              echo "Tag gia esistente: $chosen_tag"
+            else
+              git tag "$chosen_tag" "$GITHUB_SHA"
+              git push origin "$chosen_tag"
+            fi
+            echo "tag=$chosen_tag" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          # Logica per il calcolo del tag (la tua è ottima)
           latest="$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)"
           if [ -z "$latest" ]; then
             latest="v1.0.00"
@@ -82,15 +102,11 @@ jobs:
 
           version="${latest#v}"
           IFS='.' read -r major minor patch <<< "$version"
-
-          if [ -z "${major:-}" ]; then major=1; fi
-          if [ -z "${minor:-}" ]; then minor=0; fi
-          if [ -z "${patch:-}" ]; then patch=0; fi
-
+          
           next_patch=$(printf "%02d" "$((10#$patch + 1))")
           next_tag="v${major}.${minor}.${next_patch}"
 
-          git tag "$next_tag" "$GITHUB_SHA"
+          git tag "$next_tag"
           git push origin "$next_tag"
           echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
 
@@ -100,3 +116,4 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: dist/photo-splitter.exe
           generate_release_notes: true
+          
