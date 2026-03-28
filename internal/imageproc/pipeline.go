@@ -24,11 +24,13 @@ type Result struct {
 }
 
 type Options struct {
-	JPEGQuality     int
-	AutoRotateCrops bool
-	SkipWhiteBorder bool
-	SkipEnhancement bool
-	DPI             int
+	JPEGQuality      int
+	AutoRotateCrops  bool
+	SkipWhiteBorder  bool
+	SkipEnhancement  bool
+	DPI              int
+	SequentialNaming bool
+	StartIndex       int
 }
 
 func (o Options) normalized() Options {
@@ -40,6 +42,9 @@ func (o Options) normalized() Options {
 	}
 	if o.JPEGQuality > 100 {
 		o.JPEGQuality = 100
+	}
+	if o.SequentialNaming && o.StartIndex < 1 {
+		o.StartIndex = 1
 	}
 	return o
 }
@@ -71,6 +76,9 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	if !opt.SkipWhiteBorder {
 		bordered := addWhiteBorderImage(img)
 		borderedPath = filepath.Join(outputDir, "scan_bordered.png")
+		if opt.SequentialNaming {
+			borderedPath = filepath.Join(outputDir, fmt.Sprintf("scan_bordered_%04d.png", opt.StartIndex))
+		}
 		if err := savePNG(borderedPath, bordered); err != nil {
 			return Result{}, err
 		}
@@ -85,6 +93,9 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	cropFiles := make([]string, 0, 4)
 	for i, rect := range rects {
 		outPath := filepath.Join(outputDir, fmt.Sprintf("photo_%d.jpg", i+1))
+		if opt.SequentialNaming {
+			outPath = filepath.Join(outputDir, fmt.Sprintf("photo_%04d.jpg", opt.StartIndex+i))
+		}
 		if err := cropToJPEG(workingImage, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops, opt.SkipEnhancement, opt.DPI); err != nil {
 			return Result{}, fmt.Errorf("crop foto %d: %w", i+1, err)
 		}

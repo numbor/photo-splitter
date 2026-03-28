@@ -14,7 +14,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +42,7 @@ type ProcessFileRequest struct {
 	AutoRotateCrops bool   `json:"autoRotateCrops"`
 	AddBorder       bool   `json:"addBorder"`
 	EnhanceCrops    bool   `json:"enhanceCrops"`
+	UseSubfolders   *bool  `json:"useSubfolders"`
 }
 
 type RotateRequest struct {
@@ -175,12 +178,30 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 		return OperationResult{}, fmt.Errorf("creazione cartella output: %w", err)
 	}
 
-	targetDir := filepath.Join(outputDir, time.Now().Format("20060102_150405"))
+	useSubfolders := true
+	if req.UseSubfolders != nil {
+		useSubfolders = *req.UseSubfolders
+	}
+
+	targetDir := outputDir
+	startIndex := 1
+	if useSubfolders {
+		targetDir = filepath.Join(outputDir, time.Now().Format("20060102_150405"))
+	} else {
+		seqStart, seqErr := nextSequentialPhotoIndex(outputDir)
+		if seqErr != nil {
+			return OperationResult{}, seqErr
+		}
+		startIndex = seqStart
+	}
+
 	procResult, err := imageproc.ProcessTo4PhotosWithOptions(inputPath, targetDir, imageproc.Options{
-		JPEGQuality:     req.JPGQuality,
-		AutoRotateCrops: req.AutoRotateCrops,
-		SkipWhiteBorder: !req.AddBorder,
-		SkipEnhancement: !req.EnhanceCrops,
+		JPEGQuality:      req.JPGQuality,
+		AutoRotateCrops:  req.AutoRotateCrops,
+		SkipWhiteBorder:  !req.AddBorder,
+		SkipEnhancement:  !req.EnhanceCrops,
+		SequentialNaming: !useSubfolders,
+		StartIndex:       startIndex,
 	})
 	if err != nil {
 		return OperationResult{}, err
@@ -193,6 +214,7 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 		"Auto rotate crops: " + boolToOnOff(req.AutoRotateCrops),
 		"Enhance crops: " + boolToOnOff(req.EnhanceCrops),
 		"Add border: " + boolToOnOff(req.AddBorder),
+		"Use output subfolders: " + boolToOnOff(useSubfolders),
 	}
 
 	return OperationResult{
@@ -201,6 +223,34 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 		Photos:       procResult.Crops,
 		Logs:         logs,
 	}, nil
+}
+
+func nextSequentialPhotoIndex(outputDir string) (int, error) {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return 0, fmt.Errorf("lettura cartella output: %w", err)
+	}
+
+	pattern := regexp.MustCompile(`(?i)^photo_(\d+)\.jpe?g$`)
+	maxFound := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		match := pattern.FindStringSubmatch(entry.Name())
+		if len(match) != 2 {
+			continue
+		}
+		n, convErr := strconv.Atoi(match[1])
+		if convErr != nil {
+			continue
+		}
+		if n > maxFound {
+			maxFound = n
+		}
+	}
+
+	return maxFound + 1, nil
 }
 
 func (a *DesktopApp) RotatePhoto(req RotateRequest) (string, error) {

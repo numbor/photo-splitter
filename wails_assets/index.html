@@ -449,6 +449,7 @@
           <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
           <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
           <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco all'immagine</label>
+          <label><input id="useSubfolders" type="checkbox" checked /> Salva i crop in una sottocartella timestamp (se disattivato usa file sequenziali nella cartella output)</label>
         </div>
 
         <div class="actions">
@@ -487,6 +488,7 @@
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
+    const useSubfolders = document.getElementById("useSubfolders");
     const scanProfile = document.getElementById("scanProfile");
     const logBox = document.getElementById("log");
     const previews = document.getElementById("previews");
@@ -512,6 +514,7 @@
         autoRotate: autoRotate.checked,
         enhanceCrops: enhanceCrops.checked,
         addBorder: addBorder.checked,
+        useSubfolders: useSubfolders.checked,
         scanProfile: getSelectedProfile(),
       };
     }
@@ -547,6 +550,7 @@
       if (typeof prefs.autoRotate === "boolean") autoRotate.checked = prefs.autoRotate;
       if (typeof prefs.enhanceCrops === "boolean") enhanceCrops.checked = prefs.enhanceCrops;
       if (typeof prefs.addBorder === "boolean") addBorder.checked = prefs.addBorder;
+      if (typeof prefs.useSubfolders === "boolean") useSubfolders.checked = prefs.useSubfolders;
     }
 
     function applyPreferredScanProfile(preferredProfileName) {
@@ -745,6 +749,7 @@
           autoRotateCrops: autoRotate.checked,
           enhanceCrops: enhanceCrops.checked,
           addBorder: addBorder.checked,
+          useSubfolders: useSubfolders.checked,
         });
         await updateResult(result);
       } catch (err) {
@@ -791,6 +796,7 @@
           autoRotateCrops: autoRotate.checked,
           enhanceCrops: enhanceCrops.checked,
           addBorder: addBorder.checked,
+          useSubfolders: useSubfolders.checked,
         });
         await updateResult(result);
       } catch (err) {
@@ -808,6 +814,7 @@
     autoRotate.addEventListener("change", saveUIPreferences);
     enhanceCrops.addEventListener("change", saveUIPreferences);
     addBorder.addEventListener("change", saveUIPreferences);
+    useSubfolders.addEventListener("change", saveUIPreferences);
     scanProfile.addEventListener("change", saveUIPreferences);
 
     document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {
