@@ -500,6 +500,28 @@
     let scanInProgress = false;
     const prefsStorageKey = "photo-splitter-go.preferences.v1";
 
+    function getFileName(path) {
+      const raw = (path || "").trim();
+      if (!raw) return "";
+      const normalized = raw.replace(/\\/g, "/");
+      const parts = normalized.split("/");
+      return parts[parts.length - 1] || "";
+    }
+
+    function getRelativePath(basePath, fullPath) {
+      const base = (basePath || "").trim().replace(/\\/g, "/").replace(/\/+$/, "");
+      const full = (fullPath || "").trim().replace(/\\/g, "/");
+      if (!base || !full) return "";
+
+      const baseLower = base.toLowerCase();
+      const fullLower = full.toLowerCase();
+      if (fullLower === baseLower) return "";
+      if (fullLower.startsWith(baseLower + "/")) {
+        return full.slice(base.length + 1);
+      }
+      return "";
+    }
+
     function appendLog(message) {
       const now = new Date();
       const ts = now.toTimeString().slice(0, 8);
@@ -576,12 +598,29 @@
 
     function renderPreviews() {
       previews.innerHTML = "";
+      const showRelativePath = useSubfolders.checked;
+      const outputBasePath = outputPath.value;
+
       for (let i = 0; i < 4; i++) {
         const card = document.createElement("div");
         card.className = "photo-card";
 
         const title = document.createElement("h4");
-        title.textContent = `Foto ${i + 1}`;
+        const croppedFileName = getFileName(photoPathState[i]);
+        title.textContent = croppedFileName || `Foto ${i + 1}`;
+
+        if (showRelativePath && photoPathState[i]) {
+          const relPath = getRelativePath(outputBasePath, photoPathState[i]);
+          if (relPath) {
+            const rel = document.createElement("small");
+            rel.textContent = relPath;
+            rel.style.display = "block";
+            rel.style.marginTop = "4px";
+            rel.style.color = "#67717d";
+            rel.style.fontWeight = "500";
+            title.appendChild(rel);
+          }
+        }
 
         let previewElement;
         if (photoPreviewState[i]) {
@@ -810,11 +849,14 @@
     });
 
     outputPath.addEventListener("change", saveUIPreferences);
+    outputPath.addEventListener("change", renderPreviews);
+    inputPath.addEventListener("change", renderPreviews);
     jpgQuality.addEventListener("change", saveUIPreferences);
     autoRotate.addEventListener("change", saveUIPreferences);
     enhanceCrops.addEventListener("change", saveUIPreferences);
     addBorder.addEventListener("change", saveUIPreferences);
     useSubfolders.addEventListener("change", saveUIPreferences);
+    useSubfolders.addEventListener("change", renderPreviews);
     scanProfile.addEventListener("change", saveUIPreferences);
 
     document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {
