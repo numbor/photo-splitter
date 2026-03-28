@@ -48,7 +48,7 @@
     .container {
       max-width: var(--container-max);
       margin: 0 auto;
-      padding: var(--space-5) var(--space-4) var(--space-5);
+      padding: var(--space-3) var(--space-4) var(--space-4);
     }
 
     .header {
@@ -56,7 +56,7 @@
       align-items: end;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: var(--space-3);
+      margin-bottom: var(--space-2);
     }
 
     .header h1 {
@@ -77,7 +77,7 @@
       display: grid;
       grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
       gap: var(--space-3);
-      margin-bottom: var(--space-3);
+      margin-bottom: var(--space-2);
     }
 
     .panel {
@@ -85,7 +85,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-      padding: var(--space-4);
+      padding: 10px;
     }
 
     .panel h2 {
@@ -119,8 +119,8 @@
 
     input[type="text"], input[type="number"], select {
       width: 100%;
-      height: 36px;
-      padding: 6px 9px;
+      height: 34px;
+      padding: 5px 8px;
       border: 1px solid var(--line-strong);
       border-radius: 9px;
       background: white;
@@ -147,9 +147,9 @@
 
     .checks {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: var(--space-2);
-      margin-top: var(--space-3);
+      margin-top: var(--space-2);
       font-size: 14px;
     }
 
@@ -158,18 +158,21 @@
       display: flex;
       align-items: center;
       gap: 7px;
-      min-height: 36px;
-      padding: 6px 9px;
+      min-height: 32px;
+      padding: 5px 8px;
       border-radius: 9px;
       background: var(--chip);
       border: 1px solid #dbe5ef;
-      font-size: 12px;
+      font-size: 11px;
       color: #334155;
       font-weight: 600;
       letter-spacing: normal;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.3;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      align-items: flex-start;
     }
 
     .checks input[type="checkbox"] {
@@ -183,7 +186,7 @@
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: var(--space-2);
-      margin-top: var(--space-3);
+      margin-top: var(--space-2);
     }
 
     .scan-status {
@@ -218,7 +221,7 @@
     button {
       border: 1px solid #c3cfdd;
       border-radius: 9px;
-      height: 36px;
+      height: 34px;
       padding: 0 10px;
       cursor: pointer;
       background: #f7fafc;
@@ -276,13 +279,13 @@
     }
 
     .content .panel {
-      min-height: 360px;
+      min-height: 300px;
     }
 
     textarea {
       width: 100%;
       height: 100%;
-      min-height: 370px;
+      min-height: 310px;
       resize: none;
       border: 1px solid var(--line-strong);
       border-radius: 9px;
@@ -315,7 +318,7 @@
 
     .preview {
       width: 100%;
-      height: 128px;
+      height: 112px;
       border: 1px solid #d7e0ec;
       border-radius: 7px;
       background: white;
@@ -332,7 +335,7 @@
 
     .preview-empty {
       width: 100%;
-      height: 128px;
+      height: 112px;
       border: 1px solid #d7e0ec;
       border-radius: 7px;
       background: #f4f8fc;
@@ -394,6 +397,26 @@
 
       .actions {
         grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-height: 920px) {
+      .container {
+        padding-top: 8px;
+        padding-bottom: 10px;
+      }
+
+      .content .panel {
+        min-height: 270px;
+      }
+
+      textarea {
+        min-height: 280px;
+      }
+
+      .preview,
+      .preview-empty {
+        height: 96px;
       }
     }
   </style>

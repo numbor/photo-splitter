@@ -101,9 +101,9 @@ func runWailsApp() error {
 	return wails.Run(&options.App{
 		Title:             "Photo Splitter Go",
 		Width:             1280,
-		Height:            900,
+		Height:            980,
 		MinWidth:          1100,
-		MinHeight:         700,
+		MinHeight:         760,
 		AssetServer:       &assetserver.Options{Assets: assets},
 		OnStartup:         app.startup,
 		Bind:              []interface{}{app},
