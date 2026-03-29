@@ -653,15 +653,15 @@
           const img = document.createElement("img");
           img.className = "preview";
           img.src = photoPreviewState[i];
-          img.title = "Apri con visualizzatore immagini di sistema";
+          img.title = "Apri immagine";
           img.classList.add("preview-clickable");
           img.addEventListener("click", async () => {
             if (!photoPathState[i]) return;
             try {
               await app().OpenImageWithSystemViewer(photoPathState[i]);
-              appendLog(`Aperta Foto ${i + 1} nel visualizzatore di sistema.`);
+              appendLog(`Aperta Foto ${i + 1}.`);
             } catch (err) {
-              appendLog(`Errore apertura Foto ${i + 1} nel visualizzatore: ${err}`);
+              appendLog(`Errore apertura Foto ${i + 1}: ${err}`);
             }
           });
           previewElement = img;

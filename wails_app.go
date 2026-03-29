@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -749,6 +750,9 @@ func (a *DesktopApp) OpenImageWithSystemViewer(path string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
+		if err := openImageWithWindowsPhotos(imagePath); err == nil {
+			return nil
+		}
 		cmd = exec.Command("cmd", "/c", "start", "", imagePath)
 		hideExternalConsoleWindow(cmd)
 	case "darwin":
@@ -759,6 +763,19 @@ func (a *DesktopApp) OpenImageWithSystemViewer(path string) error {
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("apertura visualizzatore immagine fallita: %w", err)
+	}
+
+	return nil
+}
+
+func openImageWithWindowsPhotos(imagePath string) error {
+	escapedPath := strings.ReplaceAll(url.QueryEscape(imagePath), "+", "%20")
+	photosURI := "ms-photos:viewer?fileName=" + escapedPath
+
+	cmd := exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", photosURI)
+	hideExternalConsoleWindow(cmd)
+	if err := cmd.Start(); err != nil {
+		return err
 	}
 
 	return nil
