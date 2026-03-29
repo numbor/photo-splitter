@@ -31,6 +31,7 @@ type Options struct {
 	DPI              int
 	SequentialNaming bool
 	StartIndex       int
+	FilePrefix       string
 }
 
 func (o Options) normalized() Options {
@@ -94,7 +95,11 @@ func ProcessTo4PhotosWithOptions(inputPath, outputDir string, options Options) (
 	for i, rect := range rects {
 		outPath := filepath.Join(outputDir, fmt.Sprintf("photo_%d.jpg", i+1))
 		if opt.SequentialNaming {
-			outPath = filepath.Join(outputDir, fmt.Sprintf("photo_%04d.jpg", opt.StartIndex+i))
+			if opt.FilePrefix != "" {
+				outPath = filepath.Join(outputDir, fmt.Sprintf("%s_%d.jpg", opt.FilePrefix, opt.StartIndex+i))
+			} else {
+				outPath = filepath.Join(outputDir, fmt.Sprintf("photo_%04d.jpg", opt.StartIndex+i))
+			}
 		}
 		if err := cropToJPEG(workingImage, rect, outPath, opt.JPEGQuality, opt.AutoRotateCrops, opt.SkipEnhancement, opt.DPI); err != nil {
 			return Result{}, fmt.Errorf("crop foto %d: %w", i+1, err)

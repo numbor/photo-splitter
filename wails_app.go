@@ -42,7 +42,7 @@ type ProcessFileRequest struct {
 	AutoRotateCrops bool   `json:"autoRotateCrops"`
 	AddBorder       bool   `json:"addBorder"`
 	EnhanceCrops    bool   `json:"enhanceCrops"`
-	UseSubfolders   *bool  `json:"useSubfolders"`
+	ProjectName     string `json:"projectName"`
 }
 
 type RotateRequest struct {
@@ -178,21 +178,21 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 		return OperationResult{}, fmt.Errorf("creazione cartella output: %w", err)
 	}
 
-	useSubfolders := true
-	if req.UseSubfolders != nil {
-		useSubfolders = *req.UseSubfolders
-	}
-
+	projectName := strings.TrimSpace(req.ProjectName)
 	targetDir := outputDir
 	startIndex := 1
-	if useSubfolders {
-		targetDir = filepath.Join(outputDir, time.Now().Format("20060102_150405"))
-	} else {
-		seqStart, seqErr := nextSequentialPhotoIndex(outputDir)
+	filePrefix := ""
+
+	if projectName != "" {
+		targetDir = filepath.Join(outputDir, projectName)
+		seqStart, seqErr := nextProjectPhotoIndex(targetDir, projectName)
 		if seqErr != nil {
 			return OperationResult{}, seqErr
 		}
 		startIndex = seqStart
+		filePrefix = projectName
+	} else {
+		targetDir = filepath.Join(outputDir, time.Now().Format("20060102_150405"))
 	}
 
 	procResult, err := imageproc.ProcessTo4PhotosWithOptions(inputPath, targetDir, imageproc.Options{
@@ -200,8 +200,9 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 		AutoRotateCrops:  req.AutoRotateCrops,
 		SkipWhiteBorder:  !req.AddBorder,
 		SkipEnhancement:  !req.EnhanceCrops,
-		SequentialNaming: !useSubfolders,
+		SequentialNaming: projectName != "",
 		StartIndex:       startIndex,
+		FilePrefix:       filePrefix,
 	})
 	if err != nil {
 		return OperationResult{}, err
@@ -214,7 +215,9 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 		"Auto rotate crops: " + boolToOnOff(req.AutoRotateCrops),
 		"Enhance crops: " + boolToOnOff(req.EnhanceCrops),
 		"Add border: " + boolToOnOff(req.AddBorder),
-		"Use output subfolders: " + boolToOnOff(useSubfolders),
+	}
+	if projectName != "" {
+		logs = append(logs, "Nome progetto: "+projectName)
 	}
 
 	return OperationResult{
@@ -225,13 +228,17 @@ func (a *DesktopApp) ProcessFile(req ProcessFileRequest) (OperationResult, error
 	}, nil
 }
 
-func nextSequentialPhotoIndex(outputDir string) (int, error) {
-	entries, err := os.ReadDir(outputDir)
+func nextProjectPhotoIndex(dir, prefix string) (int, error) {
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return 1, nil
+	}
 	if err != nil {
-		return 0, fmt.Errorf("lettura cartella output: %w", err)
+		return 0, fmt.Errorf("lettura cartella progetto: %w", err)
 	}
 
-	pattern := regexp.MustCompile(`(?i)^photo_(\d+)\.jpe?g$`)
+	escaped := regexp.QuoteMeta(prefix)
+	pattern := regexp.MustCompile(`(?i)^` + escaped + `_(\d+)\.jpe?g$`)
 	maxFound := 0
 	for _, entry := range entries {
 		if entry.IsDir() {

@@ -449,6 +449,11 @@
           </div>
           <button id="btnPickInput">Apri file...</button>
         </div>
+
+        <div style="margin-top: var(--space-2);">
+          <label>Nome progetto (opzionale)</label>
+          <input id="projectName" type="text" placeholder="es. vacanze2026 — lascia vuoto per cartella timestamp" />
+        </div>
       </section>
 
       <section class="panel">
@@ -472,7 +477,6 @@
           <label><input id="autoRotate" type="checkbox" checked /> Ruota automaticamente i crop di 90° a destra</label>
           <label><input id="enhanceCrops" type="checkbox" checked /> Migliora automaticamente i crop</label>
           <label><input id="addBorder" type="checkbox" checked /> Aggiungi bordo bianco all'immagine</label>
-          <label><input id="useSubfolders" type="checkbox" checked /> Salva i crop in una sottocartella timestamp (se disattivato usa file sequenziali nella cartella output)</label>
         </div>
 
         <div class="actions">
@@ -507,11 +511,11 @@
     const app = () => window.go.main.DesktopApp;
     const outputPath = document.getElementById("outputPath");
     const inputPath = document.getElementById("inputPath");
+    const projectName = document.getElementById("projectName");
     const jpgQuality = document.getElementById("jpgQuality");
     const autoRotate = document.getElementById("autoRotate");
     const enhanceCrops = document.getElementById("enhanceCrops");
     const addBorder = document.getElementById("addBorder");
-    const useSubfolders = document.getElementById("useSubfolders");
     const scanProfile = document.getElementById("scanProfile");
     const logBox = document.getElementById("log");
     const previews = document.getElementById("previews");
@@ -559,8 +563,8 @@
         autoRotate: autoRotate.checked,
         enhanceCrops: enhanceCrops.checked,
         addBorder: addBorder.checked,
-        useSubfolders: useSubfolders.checked,
         scanProfile: getSelectedProfile(),
+        projectName: (projectName.value || "").trim(),
       };
     }
 
@@ -595,7 +599,7 @@
       if (typeof prefs.autoRotate === "boolean") autoRotate.checked = prefs.autoRotate;
       if (typeof prefs.enhanceCrops === "boolean") enhanceCrops.checked = prefs.enhanceCrops;
       if (typeof prefs.addBorder === "boolean") addBorder.checked = prefs.addBorder;
-      if (typeof prefs.useSubfolders === "boolean") useSubfolders.checked = prefs.useSubfolders;
+      if (typeof prefs.projectName === "string") projectName.value = prefs.projectName;
     }
 
     function applyPreferredScanProfile(preferredProfileName) {
@@ -621,7 +625,6 @@
 
     function renderPreviews() {
       previews.innerHTML = "";
-      const showRelativePath = useSubfolders.checked;
       const outputBasePath = outputPath.value;
 
       for (let i = 0; i < 4; i++) {
@@ -632,7 +635,7 @@
         const croppedFileName = getFileName(photoPathState[i]);
         title.textContent = croppedFileName || `Foto ${i + 1}`;
 
-        if (showRelativePath && photoPathState[i]) {
+        if (photoPathState[i]) {
           const relPath = getRelativePath(outputBasePath, photoPathState[i]);
           if (relPath) {
             const rel = document.createElement("small");
@@ -811,7 +814,7 @@
           autoRotateCrops: autoRotate.checked,
           enhanceCrops: enhanceCrops.checked,
           addBorder: addBorder.checked,
-          useSubfolders: useSubfolders.checked,
+          projectName: projectName.value.trim(),
         });
         await updateResult(result);
       } catch (err) {
@@ -858,7 +861,7 @@
           autoRotateCrops: autoRotate.checked,
           enhanceCrops: enhanceCrops.checked,
           addBorder: addBorder.checked,
-          useSubfolders: useSubfolders.checked,
+          projectName: projectName.value.trim(),
         });
         await updateResult(result);
       } catch (err) {
@@ -878,9 +881,8 @@
     autoRotate.addEventListener("change", saveUIPreferences);
     enhanceCrops.addEventListener("change", saveUIPreferences);
     addBorder.addEventListener("change", saveUIPreferences);
-    useSubfolders.addEventListener("change", saveUIPreferences);
-    useSubfolders.addEventListener("change", renderPreviews);
     scanProfile.addEventListener("change", saveUIPreferences);
+    projectName.addEventListener("input", saveUIPreferences);
 
     document.getElementById("btnOpenNapsGui").addEventListener("click", async () => {
       try {
